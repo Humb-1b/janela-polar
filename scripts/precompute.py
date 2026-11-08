@@ -26,7 +26,9 @@ def main():
     a = p.parse_args()
 
     t0 = datetime.strptime(a.start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    print(f"Montando pacote {a.start} + {a.days} dias via {a.provider} (23 consultas)…")
+    from app.sites import all_sites, dsn_stations
+    nq = 2 * len(all_sites()) + len(dsn_stations())
+    print(f"Montando pacote {a.start} + {a.days} dias via {a.provider} ({nq} consultas)…")
     b = build_bundle(t0, a.days, 60, a.provider)
     out = REPO / "frontend" / "data" / f"bundle-{a.start}-{a.days}d.json"
     out.parent.mkdir(parents=True, exist_ok=True)
