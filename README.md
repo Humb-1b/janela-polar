@@ -55,6 +55,7 @@ janela-polar/
 ├── scripts/
 │   ├── horizons_probe.py     testa uma consulta real à Horizons
 │   ├── precompute.py         gera frontend/data/bundle-*.json para uso sem backend
+│   ├── sites_from_shapefiles.py  centro oficial das regiões a partir das grades do USGS
 │   └── horizon_mask_from_dem.py  calcula o horizonte real de cada local a partir de um DEM do LOLA
 ├── docs/api.md               referência da API com exemplos
 ├── Dockerfile
@@ -137,7 +138,12 @@ Sem máscara, cada local tem horizonte liso. No polo isso superestima o Sol, por
 ## Antes do dia da apresentação
 
 - Rode `python scripts/precompute.py --start <data> --days 30` para as datas que vão mostrar. O app funciona mesmo sem internet.
-- Confira as coordenadas em `backend/data/sites.json`: hoje são o centro **aproximado** de cada região.
+- Troque as coordenadas aproximadas pelas oficiais. A NASA não publica uma tabela com os centros, mas o USGS publicou as
+  grades de navegação de cada região ([doi:10.5066/P1MEQ6UK](https://doi.org/10.5066/P1MEQ6UK)). Baixe os shapefiles e rode:
+  ```bash
+  python scripts/sites_from_shapefiles.py pasta_ou_zip_dos_shapefiles           # compara
+  python scripts/sites_from_shapefiles.py pasta_ou_zip_dos_shapefiles --write   # grava em sites.json
+  ```
 
 ## Deploy
 
