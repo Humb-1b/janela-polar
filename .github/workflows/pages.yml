@@ -1,0 +1,55 @@
+# Publica a pasta frontend/ no GitHub Pages: https://humb-1b.github.io/janela-polar/
+#
+# Roda a cada envio para a main, todo dia às 03:17 UTC (para renovar os dados)
+# e manualmente pela aba Actions ("Run workflow").
+#
+# A versão online não tem backend. Para ela mostrar dados da JPL Horizons, este
+# fluxo gera um pacote pré-calculado com os 30 dias a partir de hoje (UTC). Se a
+# Horizons não responder, o pacote sai com o modelo analítico e a publicação segue.
+name: publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt
+      - name: Pré-calcular dados da Horizons (hoje + 30 dias)
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          HORIZONS_TIMEOUT: "90"
+        run: python scripts/precompute.py --start "$(date -u +%F)" --days 30 --provider auto
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

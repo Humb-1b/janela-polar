@@ -14,19 +14,22 @@ Ferramenta para comparar locais de pouso no polo sul da Lua: **quando há Sol** 
 
 As posições do Sol e da Terra vêm da **JPL Horizons API** (efeméride DE441, a mesma usada pela JPL em planejamento de missões). Se a Horizons não responder, o app continua funcionando com um modelo analítico embutido e mostra qual fonte está em uso.
 
+**Versão online:** https://humb-1b.github.io/janela-polar/ (sem instalar nada; dados pré-calculados da Horizons, renovados todo dia)
+
 ## Rodando em 2 minutos
 
-Requisitos: Python 3.10+.
+Requisitos: Python 3.10+ e Git.
 
 ```bash
-cd backend
+git clone https://github.com/Humb-1b/janela-polar.git
+cd janela-polar/backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m app                      # abre em http://127.0.0.1:5000
 ```
 
-O servidor entrega a página e a API juntos. A **primeira** consulta de um período faz 23 chamadas à Horizons e leva de 30 s a 1 min; depois tudo vem do cache em `backend/.cache/`.
+O servidor entrega a página e a API juntos. A **primeira** consulta de um período faz 2 chamadas à Horizons por local, mais 3 para as antenas da DSN, e leva de 30 s a 1 min; depois tudo vem do cache em `backend/.cache/`.
 
 Antes de tudo, confirme que a Horizons aceita as consultas do app:
 
@@ -175,6 +178,8 @@ Sem máscara, cada local tem horizonte liso. No polo isso superestima o Sol, por
 docker build -t janela-polar .
 docker run -p 8000:8000 janela-polar
 ```
+
+**GitHub Pages (já configurado):** `.github/workflows/pages.yml` publica a pasta `frontend/` a cada envio para a `main` e todo dia às 03:17 UTC. Antes de publicar, gera com a Horizons o pacote dos 30 dias a partir do dia (UTC), então a versão online mostra dados da NASA para quem abrir com a data de hoje. Para outras datas, ela usa o cálculo do navegador. Para publicar de novo na hora: aba **Actions → publicar no GitHub Pages → Run workflow**.
 
 **Separado:** frontend no GitHub Pages (publique a pasta `frontend/`) e backend em outro serviço. Coloque a URL do backend em `frontend/config.js`.
 
