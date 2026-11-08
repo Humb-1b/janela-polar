@@ -8,3 +8,7 @@ backend/.cache/
 *.tiff
 .DS_Store
 .env
+
+# capturas de tela de testes locais
+*.png
+!docs/**/*.png
