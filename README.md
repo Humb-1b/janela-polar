@@ -2,6 +2,16 @@
 
 Ferramenta para comparar locais de pouso no polo sul da Lua: **quando há Sol** para gerar energia e **quando a Terra está acima do horizonte** para comunicação direta (DTE) com a Deep Space Network. Projeto para o desafio do NASA Space Apps Challenge 2026.
 
+**O que dá para fazer:**
+
+- Escolher entre as 9 regiões candidatas da Artemis III, pousos recentes (IM-1, IM-2, Blue Ghost 1, Chandrayaan-3, SLIM, Chang'e 4 e 6), as Apollo 11, 15 e 17, ou digitar qualquer coordenada.
+- Ver o Sol e a Terra em relação ao horizonte de cada local, num mapa polar ou da Lua inteira, numa vista do horizonte e numa linha do tempo animada.
+- Saber quanto falta para o pôr do Sol e para o pôr da Terra, a elevação do Sol e o tamanho da sombra de uma pessoa naquele momento.
+- Comparar locais no mesmo período, numa tabela com energia solar, tempo de contato direto, noite mais longa e um índice.
+- Encontrar a melhor data de pouso: um mapa de calor mostra, para cada dia dos próximos meses, que fração da missão teria Sol e contato.
+- Fixar cenários (local + data) e compará-los lado a lado. Serve, por exemplo, para comparar o plano original com as alternativas depois de um atraso.
+- Explicações em linguagem simples para educadores e para o público.
+
 As posições do Sol e da Terra vêm da **JPL Horizons API** (efeméride DE441, a mesma usada pela JPL em planejamento de missões). Se a Horizons não responder, o app continua funcionando com um modelo analítico embutido e mostra qual fonte está em uso.
 
 ## Rodando em 2 minutos
@@ -48,8 +58,12 @@ janela-polar/
 │   ├── tests/                testes (unittest; também rodam com pytest)
 │   ├── wsgi.py               entrada para gunicorn em produção
 │   └── requirements.txt
-├── frontend/
-│   ├── index.html            o app (HTML + CSS + JS num arquivo, sem build)
+├── frontend/                 sem etapa de build: HTML, CSS e JS puros
+│   ├── index.html            estrutura da página
+│   ├── css/app.css           visual (cores com tema claro e escuro)
+│   ├── js/engine.js          cálculos astronômicos (mesma matemática de backend/app/analytic.py)
+│   ├── js/app.js             interface: mapas, painel, linha do tempo, planejador, cenários
+│   ├── tests/engine.test.mjs testa o motor JS contra os valores do Python (node --test)
 │   ├── config.js             endereço do backend quando hospedado separado
 │   └── data/                 pacotes pré-calculados (gerados por scripts/precompute.py)
 ├── scripts/
@@ -81,7 +95,9 @@ O frontend tenta três fontes, nesta ordem, e o selo no topo da página diz qual
 2. **Arquivo pré-calculado** (`frontend/data/bundle-AAAA-MM-DD-30d.json`): para GitHub Pages ou se a internet cair.
 3. **Cálculo no navegador**: modelo analítico, sempre disponível.
 
-O mapa de iluminação usa sempre o modelo analítico, porque precisaria de milhares de pontos e seria pesado consultar a Horizons para cada um.
+O mapa de iluminação e o planejador de datas usam sempre o modelo analítico: precisariam de milhares de pontos ou de meses de dados por local, e seria pesado consultar a Horizons para tudo isso.
+
+Locais personalizados e cenários fixados ficam guardados só no navegador de quem os criou (localStorage).
 
 ## A consulta à Horizons
 
@@ -115,6 +131,12 @@ A API é pública e não pede chave. A JPL pede uso moderado, por isso o backend
 cd backend
 pip install -r requirements-dev.txt
 python -m pytest            # ou: python -m unittest discover -s tests -t .
+```
+
+O motor JavaScript tem seus próprios testes (Node 18+):
+
+```bash
+node --test frontend/tests/*.test.mjs
 ```
 
 Os testes não acessam a internet: a Horizons é simulada. `tests/fixtures/horizons_sun_from_moon.txt` é uma amostra **sintética** no formato da Horizons. Troque por uma resposta real assim que puderem:
@@ -161,8 +183,9 @@ docker run -p 8000:8000 janela-polar
 - Coordenadas das regiões Artemis III aproximadas.
 - O modelo analítico ignora nutação e libração física (erro de ~0,1–0,3°).
 - O raio do disco solar é fixo em 0,2666° (varia ±1,7% ao longo do ano).
+- Os locais de pouso de outras missões são a posição do módulo segundo a NASA NSSDC; as regiões Artemis III ainda estão aproximadas.
 - A visibilidade das antenas DSN no modo analítico é geocêntrica (erro de até ~1° pela paralaxe da Lua). Com a Horizons é topocêntrica.
 
 ## Créditos dos dados
 
-JPL Horizons (NASA/JPL Solar System Dynamics). Regiões candidatas Artemis III: NASA (out/2024). Algoritmos analíticos: J. Meeus, *Astronomical Algorithms*, 2ª ed.
+JPL Horizons (NASA/JPL Solar System Dynamics). Regiões candidatas Artemis III: NASA (out/2024). Locais de pouso de outras missões: NASA NSSDC, Lunar Artifacts. Algoritmos analíticos: J. Meeus, *Astronomical Algorithms*, 2ª ed.

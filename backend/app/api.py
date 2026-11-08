@@ -7,7 +7,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from . import ephemeris, windows
 from .config import ALLOWED_STEPS_MIN, MAX_DAYS, PROVIDER
-from .sites import all_sites, dsn_stations, get_site, load_mask
+from .sites import dsn_stations, get_site, load_mask, select_sites, site_groups
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -45,6 +45,17 @@ def _period():
     return t0, days, step, provider
 
 
+def _sites():
+    """?sites=mal,haw ou ?group=apollo. Sem nenhum: todos os locais."""
+    raw = request.args.get("sites", "")
+    ids = [x.strip() for x in raw.split(",") if x.strip()]
+    group = request.args.get("group") or None
+    try:
+        return select_sites(ids, group)
+    except KeyError as e:
+        raise BadRequest(f"Local ou grupo desconhecido: {e.args[0]}. Veja /api/sites.") from None
+
+
 def _window_params():
     return {
         "margin": _arg_float("margin", 0.5, -2, 10),
@@ -65,15 +76,26 @@ def health():
 
 @bp.get("/sites")
 def sites():
-    data = [dict(s, has_mask=load_mask(s["id"]) is not None) for s in all_sites()]
-    return jsonify({"sites": data, "dsn": dsn_stations()})
+    data = [dict(s, has_mask=load_mask(s["id"]) is not None) for s in select_sites()]
+    return jsonify({"groups": site_groups(), "sites": data, "dsn": dsn_stations()})
 
 
 @bp.get("/bundle")
 def bundle():
     """Séries brutas (Sol, Terra, DSN) do período. É o que o frontend usa."""
     t0, days, step, provider = _period()
-    return jsonify(ephemeris.cached_bundle(t0, days, step, provider))
+    return jsonify(ephemeris.cached_bundle(t0, days, step, provider, _sites()))
+
+
+@bp.get("/point")
+def point():
+    """Séries do Sol e da Terra para uma coordenada qualquer: ?lat=-85.5&lon=10."""
+    lat = _arg_float("lat", None, -90, 90)
+    lon = _arg_float("lon", None, -180, 360)
+    if lat is None or lon is None:
+        raise BadRequest("Informe 'lat' (−90 a 90) e 'lon' (graus leste, −180 a 360)")
+    t0, days, step, provider = _period()
+    return jsonify(ephemeris.point_series(t0, days, step, provider, lat, lon))
 
 
 def _evaluate(b, site_id, t0, step, wp):
@@ -90,7 +112,7 @@ def site_windows():
         raise BadRequest(f"Local '{site_id}' não existe. Veja /api/sites para os ids.")
     t0, days, step, provider = _period()
     wp = _window_params()
-    b = ephemeris.cached_bundle(t0, days, step, provider)
+    b = ephemeris.cached_bundle(t0, days, step, provider, [site])
     res = _evaluate(b, site_id, t0, step, wp)
 
     if request.args.get("format") == "csv":
@@ -113,9 +135,10 @@ def compare():
     """Ranking dos locais no período, com as mesmas métricas da tabela do app."""
     t0, days, step, provider = _period()
     wp = _window_params()
-    b = ephemeris.cached_bundle(t0, days, step, provider)
+    sites = _sites()
+    b = ephemeris.cached_bundle(t0, days, step, provider, sites)
     rows = []
-    for s in all_sites():
+    for s in sites:
         st = _evaluate(b, s["id"], t0, step, wp)["stats"]
         rows.append({"id": s["id"], "name": s["name"], **{k: round(v, 4) for k, v in st.items()}})
     rows.sort(key=lambda r: -r["score"])

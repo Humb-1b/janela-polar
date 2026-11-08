@@ -53,13 +53,14 @@ class _Fetcher:
         return az, el, "analytic"
 
 
-def build_bundle(t0, days, step_min, provider=None):
+def build_bundle(t0, days, step_min, provider=None, sites=None):
+    """sites: lista de dicts de local (padrão: todos de sites.json)."""
     provider = (provider or PROVIDER).lower()
     n = int(days * 24 * 60 // step_min) + 1
     times = [t0 + timedelta(minutes=i * step_min) for i in range(n)]
     f = _Fetcher(provider, times, t0, step_min)
 
-    sites, stations = all_sites(), dsn_stations()
+    sites, stations = (sites if sites is not None else all_sites()), dsn_stations()
     jobs = []
     for s in sites:
         jobs.append(("site", s, "sun"))
@@ -103,15 +104,15 @@ def build_bundle(t0, days, step_min, provider=None):
 _mem, _mem_lock = {}, threading.Lock()
 
 
-def cached_bundle(t0, days, step_min, provider):
+def cached_bundle(t0, days, step_min, provider, sites=None):
     """Mantém em memória os últimos pacotes (o cache em disco cobre reinícios).
     Um pacote montado com o modelo analítico por falha da Horizons não fica
     guardado, para a próxima chamada tentar a Horizons de novo."""
-    key = (t0, days, step_min, provider)
+    key = (t0, days, step_min, provider, tuple(s["id"] for s in sites) if sites is not None else None)
     with _mem_lock:
         if key in _mem:
             return _mem[key]
-    b = build_bundle(t0, days, step_min, provider)
+    b = build_bundle(t0, days, step_min, provider, sites)
     fallback = provider != "analytic" and b["source"] != "horizons"
     if not fallback:
         with _mem_lock:
@@ -134,3 +135,20 @@ def site_series(bundle, site_id):
 def dsn_series(bundle):
     nan = float("nan")
     return [[nan if v is None else v for v in xs] for xs in bundle["dsn"]["elev"].values()]
+
+
+def point_series(t0, days, step_min, provider, lat, lon, alt_km=0.0):
+    """Sol e Terra vistos de uma coordenada qualquer (local personalizado)."""
+    provider = (provider or PROVIDER).lower()
+    n = int(days * 24 * 60 // step_min) + 1
+    times = [t0 + timedelta(minutes=i * step_min) for i in range(n)]
+    f = _Fetcher(provider, times, t0, step_min)
+    out, used = {}, set()
+    for kind in ("sun", "earth"):
+        az, el, src = f.get(kind, lat, lon, alt_km)
+        used.add(src)
+        out[f"{kind}_el"] = [_r(v) for v in el]
+        out[f"{kind}_az"] = [_r(v) for v in az]
+    source = used.pop() if len(used) == 1 else "mixed"
+    return {"source": source, "start": t0.isoformat().replace("+00:00", "Z"), "step_min": step_min,
+            "n": n, "lat": lat, "lon": lon, "series": out, "warnings": f.warnings}

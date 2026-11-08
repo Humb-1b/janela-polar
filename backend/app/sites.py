@@ -19,6 +19,28 @@ def dsn_stations():
     return _catalog()["dsn"]
 
 
+def site_groups():
+    return _catalog().get("groups", [])
+
+
+def select_sites(ids=None, group=None):
+    """Locais por lista de ids ou por grupo. Sem nenhum dos dois: todos.
+    Levanta KeyError com o id/grupo desconhecido."""
+    sites = all_sites()
+    if ids:
+        by_id = {s["id"]: s for s in sites}
+        missing = [i for i in ids if i not in by_id]
+        if missing:
+            raise KeyError(", ".join(missing))
+        return [by_id[i] for i in dict.fromkeys(ids)]
+    if group:
+        chosen = [s for s in sites if s.get("group") == group]
+        if not chosen:
+            raise KeyError(group)
+        return chosen
+    return sites
+
+
 def get_site(site_id):
     for s in all_sites():
         if s["id"] == site_id:

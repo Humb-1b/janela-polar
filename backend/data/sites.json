@@ -1,5 +1,19 @@
 {
-  "_comment": "Coordenadas APROXIMADAS (centro estimado de cada região de ~15 km), marcadas em coord_status. Para trocar pelo centro oficial, rode scripts/sites_from_shapefiles.py com as grades do USGS (doi:10.5066/P1MEQ6UK). lon: graus leste (negativo = oeste). alt_km: altitude sobre a esfera de 1737,4 km (0 = desconhecida).",
+  "_comment": "Artemis III: coordenadas APROXIMADAS (coord_status) até rodar scripts/sites_from_shapefiles.py com as grades do USGS (doi:10.5066/P1MEQ6UK). Pousos e Apollo: posição do módulo de pouso segundo a NASA NSSDC (coord_source). lon: graus leste (negativo = oeste). alt_km: altitude sobre a esfera de 1737,4 km (0 = desconhecida).",
+  "groups": [
+    {
+      "id": "artemis3",
+      "name": "Artemis III: regiões candidatas"
+    },
+    {
+      "id": "pousos",
+      "name": "Pousos recentes: CLPS e outros países"
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo"
+    }
+  ],
   "sites": [
     {
       "id": "cab",
@@ -8,7 +22,8 @@
       "lon": -49.0,
       "alt_km": 0,
       "desc": "Região mais distante do polo; voltada para o lado visível, boa visada da Terra.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "haw",
@@ -17,7 +32,8 @@
       "lon": -4.0,
       "alt_km": 0,
       "desc": "Borda da cratera Haworth, vizinha de regiões permanentemente sombreadas.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "mal",
@@ -26,7 +42,8 @@
       "lon": 3.0,
       "alt_km": 0,
       "desc": "Maciço alto voltado para a Terra; muito citado como ponto de retransmissão.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "mmp",
@@ -35,7 +52,8 @@
       "lon": 38.0,
       "alt_km": 0,
       "desc": "Platô no topo de Mons Mouton, área alta e relativamente plana.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "mmo",
@@ -44,7 +62,8 @@
       "lon": 31.0,
       "alt_km": 0,
       "desc": "Encostas de Mons Mouton, uma das maiores elevações da região.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "nb1",
@@ -53,7 +72,8 @@
       "lon": 45.0,
       "alt_km": 0,
       "desc": "Borda da cratera Nobile, próxima a sombras permanentes.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "nb2",
@@ -62,7 +82,8 @@
       "lon": 60.0,
       "alt_km": 0,
       "desc": "Outro trecho da borda de Nobile, mais a leste.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "dg2",
@@ -71,7 +92,8 @@
       "lon": -64.0,
       "alt_km": 0,
       "desc": "A mais próxima do polo (~50 km), sobre um relevo ~3 km acima do entorno.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "sla",
@@ -80,7 +102,8 @@
       "lon": 112.0,
       "alt_km": 0,
       "desc": "Planície do lado oposto à Terra: compare a comunicação com os demais.",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
     },
     {
       "id": "shk",
@@ -90,7 +113,108 @@
       "alt_km": 0,
       "ref": true,
       "desc": "Referência clássica de iluminação quase contínua (não está na lista de 9).",
-      "coord_status": "aproximada"
+      "coord_status": "aproximada",
+      "group": "artemis3"
+    },
+    {
+      "id": "im1",
+      "name": "IM-1 Odysseus",
+      "group": "pousos",
+      "lat": -80.13,
+      "lon": 1.44,
+      "alt_km": 0,
+      "desc": "Intuitive Machines, fev/2024 (CLPS). Primeiro pouso comercial dos EUA, perto da cratera Malapert A.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "im2",
+      "name": "IM-2 Athena",
+      "group": "pousos",
+      "lat": -84.7906,
+      "lon": 29.1957,
+      "alt_km": 0,
+      "desc": "Intuitive Machines, mar/2025 (CLPS). Pouso mais ao sul até então, em Mons Mouton; tombou e operou por pouco tempo.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "ch3",
+      "name": "Chandrayaan-3",
+      "group": "pousos",
+      "lat": -69.3741,
+      "lon": 32.32,
+      "alt_km": 0,
+      "desc": "ISRO (Índia), ago/2023. Ponto Shiv Shakti; operou durante um dia lunar.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "bg1",
+      "name": "Blue Ghost 1",
+      "group": "pousos",
+      "lat": 18.562,
+      "lon": 61.81,
+      "alt_km": 0,
+      "desc": "Firefly, mar/2025 (CLPS), Mare Crisium. Operou um dia lunar inteiro e registrou o pôr do Sol.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "slim",
+      "name": "SLIM",
+      "group": "pousos",
+      "lat": -13.316,
+      "lon": 25.251,
+      "alt_km": 0,
+      "desc": "JAXA (Japão), jan/2024. Pousou de lado; os painéis ficaram voltados para o oeste e só geraram energia à tarde.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "ce4",
+      "name": "Chang'e 4",
+      "group": "pousos",
+      "lat": -45.4561,
+      "lon": 177.5885,
+      "alt_km": 0,
+      "desc": "CNSA (China), jan/2019. Primeiro pouso no lado oculto: a Terra nunca aparece, o contato é pelo satélite Queqiao.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "ce6",
+      "name": "Chang'e 6",
+      "group": "pousos",
+      "lat": -41.6385,
+      "lon": -153.9852,
+      "alt_km": 0,
+      "desc": "CNSA (China), jun/2024. Trouxe as primeiras amostras do lado oculto, com retransmissão pelo Queqiao-2.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "a11",
+      "name": "Apollo 11",
+      "group": "apollo",
+      "lat": 0.67416,
+      "lon": 23.47314,
+      "alt_km": 0,
+      "desc": "Jul/1969, Mar da Tranquilidade. Perto do equador: o Sol sobe alto e a Terra fica quase parada no céu.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "a15",
+      "name": "Apollo 15",
+      "group": "apollo",
+      "lat": 26.13239,
+      "lon": 3.6333,
+      "alt_km": 0,
+      "desc": "Jul/1971, Hadley-Apeninos. Primeira missão com o jipe lunar.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
+    },
+    {
+      "id": "a17",
+      "name": "Apollo 17",
+      "group": "apollo",
+      "lat": 20.1911,
+      "lon": 30.7723,
+      "alt_km": 0,
+      "desc": "Dez/1972, Taurus-Littrow. Último pouso tripulado até hoje.",
+      "coord_source": "NASA NSSDC, Lunar Artifacts (nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)"
     }
   ],
   "dsn": [

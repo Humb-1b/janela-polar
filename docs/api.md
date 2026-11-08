@@ -29,7 +29,11 @@ Erros de parâmetro voltam com `400` e `{"error": "mensagem"}`. Se `provider=hor
 
 ## `GET /api/sites`
 
-Locais e antenas, com `has_mask` dizendo se há máscara de relevo.
+Grupos, locais e antenas. Cada local traz `group` (`artemis3`, `pousos`, `apollo`) e `has_mask` (se há máscara de relevo).
+
+## Escolher locais: `sites` e `group`
+
+`/api/bundle` e `/api/compare` aceitam `?sites=mal,haw,a11` (lista de ids) ou `?group=pousos`. Sem nenhum dos dois, usam todos os locais. Id ou grupo desconhecido volta `400`.
 
 ## `GET /api/bundle`
 
@@ -63,6 +67,16 @@ Séries brutas do período. É o que o frontend consome.
 ```
 
 O instante `i` é `start + i × step_min`. Valores ausentes vêm como `null`.
+
+## `GET /api/point`
+
+Sol e Terra vistos de uma coordenada qualquer (os "locais personalizados" do app).
+
+```
+/api/point?lat=-89.45&lon=137.3&start=2026-11-08&days=30
+```
+
+`lat` de −90 a 90, `lon` em graus leste (−180 a 360). A resposta traz `source`, `n`, `step_min` e `series` com `sun_el`, `sun_az`, `earth_el` e `earth_az`, no mesmo formato de um local do `/api/bundle`.
 
 ## `GET /api/windows`
 

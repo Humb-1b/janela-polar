@@ -63,6 +63,27 @@ class TestAPI(unittest.TestCase):
         scores = [x["score"] for x in r.json["ranking"]]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
+    def test_groups_and_subsets(self):
+        r = self.c.get("/api/sites")
+        self.assertEqual({g["id"] for g in r.json["groups"]}, {"artemis3", "pousos", "apollo"})
+        r = self.c.get("/api/bundle?start=2026-11-08&days=1&provider=analytic&sites=a11,mal")
+        self.assertEqual(set(r.json["sites"]), {"a11", "mal"})
+        self.assertEqual([s["id"] for s in r.json["site_list"]], ["a11", "mal"])
+        r = self.c.get("/api/compare?start=2026-11-08&days=2&provider=analytic&group=pousos")
+        self.assertIn("ce4", [x["id"] for x in r.json["ranking"]])
+        # Chang'e 4 fica no lado oculto: a Terra nunca aparece
+        ce4 = next(x for x in r.json["ranking"] if x["id"] == "ce4")
+        self.assertEqual(ce4["dte"], 0)
+        self.assertEqual(self.c.get("/api/bundle?sites=mal,xyz").status_code, 400)
+        self.assertEqual(self.c.get("/api/compare?group=nada").status_code, 400)
+
+    def test_point(self):
+        r = self.c.get("/api/point?lat=-85.5&lon=10&start=2026-11-08&days=1&provider=analytic")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json["series"]["sun_el"]), 25)
+        self.assertEqual(self.c.get("/api/point?lat=-95&lon=0").status_code, 400)
+        self.assertEqual(self.c.get("/api/point?lat=10").status_code, 400)
+
     def test_validation(self):
         self.assertEqual(self.c.get("/api/bundle?start=ontem").status_code, 400)
         self.assertEqual(self.c.get("/api/bundle?days=500").status_code, 400)
