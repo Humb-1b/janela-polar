@@ -1,0 +1,27 @@
+*******************************************************************************
+ SINTÉTICO: amostra escrita à mão no formato da resposta da Horizons, só para
+ testar o leitor. Os números NÃO são efemérides reais. Substitua por uma
+ resposta real com: python ../scripts/horizons_probe.py --save tests/fixtures/real.txt
+*******************************************************************************
+Target body name: Sun (10)                        {source: DE441}
+Center body name: Moon (301)                      {source: DE441}
+Center-site name: (user defined site below)
+*******************************************************************************
+Start time      : A.D. 2026-Nov-08 00:00:00.0000 UT
+Stop  time      : A.D. 2026-Nov-08 03:00:00.0000 UT
+Step-size       : 60 minutes
+*******************************************************************************
+Center geodetic : 3.000000,-85.900000,0.0000000   {E-lon(deg),Lat(deg),Alt(km)}
+Atmos refraction: NO (AIRLESS)
+RA format       : DEG
+Time format     : CAL
+*******************************************************************************
+ Date__(UT)__HR:MN, , , Azi_(a-app), Elev_(a-app),
+***************************************************
+$$SOE
+ 2026-Nov-08 00:00, , , 251.123456, 1.234567,
+ 2026-Nov-08 01:00, , , 251.631000, 1.250100,
+ 2026-Nov-08 02:00, , , 252.138500, 1.265600,
+ 2026-Nov-08 03:00, , ,       n.a.,     n.a.,
+$$EOE
+***************************************************

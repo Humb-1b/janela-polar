@@ -1,0 +1,4 @@
+# Só para scripts/horizon_mask_from_dem.py (os outros scripts usam o backend)
+numpy>=1.26
+rasterio>=1.3
+pyproj>=3.6

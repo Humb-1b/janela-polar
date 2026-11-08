@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+backend/.cache/
+*.tif
+*.tiff
+.DS_Store
+.env

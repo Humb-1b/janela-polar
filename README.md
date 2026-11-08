@@ -1,0 +1,162 @@
+# Janela Polar
+
+Ferramenta para comparar locais de pouso no polo sul da Lua: **quando há Sol** para gerar energia e **quando a Terra está acima do horizonte** para comunicação direta (DTE) com a Deep Space Network. Projeto para o desafio do NASA Space Apps Challenge 2026.
+
+As posições do Sol e da Terra vêm da **JPL Horizons API** (efeméride DE441, a mesma usada pela JPL em planejamento de missões). Se a Horizons não responder, o app continua funcionando com um modelo analítico embutido e mostra qual fonte está em uso.
+
+## Rodando em 2 minutos
+
+Requisitos: Python 3.10+.
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python -m app                      # abre em http://127.0.0.1:5000
+```
+
+O servidor entrega a página e a API juntos. A **primeira** consulta de um período faz 23 chamadas à Horizons e leva de 30 s a 1 min; depois tudo vem do cache em `backend/.cache/`.
+
+Antes de tudo, confirme que a Horizons aceita as consultas do app:
+
+```bash
+python scripts/horizons_probe.py          # da raiz do repositório
+```
+
+Ele mostra a elevação do Sol em Malapert pela Horizons e pelo modelo analítico, lado a lado. Diferenças de até ~0,3° são normais.
+
+## Estrutura
+
+```
+janela-polar/
+├── backend/                  API em Flask
+│   ├── app/
+│   │   ├── __init__.py       create_app(): monta o Flask, CORS e serve o frontend
+│   │   ├── __main__.py       `python -m app` (servidor de desenvolvimento)
+│   │   ├── api.py            rotas /api/* (validação de parâmetros e respostas)
+│   │   ├── horizons.py       cliente da JPL Horizons: monta a consulta, lê o CSV, repete em falha
+│   │   ├── analytic.py       modelo analítico (Meeus) para uso offline
+│   │   ├── ephemeris.py      junta tudo num "pacote": Sol e Terra por local + Lua por antena DSN
+│   │   ├── windows.py        regras das janelas: fração do disco solar, DTE, estatísticas, índice
+│   │   ├── sites.py          lê sites.json e as máscaras de horizonte
+│   │   ├── cache.py          cache em disco das respostas da Horizons
+│   │   └── config.py         variáveis de ambiente
+│   ├── data/
+│   │   ├── sites.json        locais candidatos + antenas DSN (fonte única dos locais)
+│   │   └── horizon_masks/    máscaras de relevo opcionais (<id>.csv)
+│   ├── tests/                testes (unittest; também rodam com pytest)
+│   ├── wsgi.py               entrada para gunicorn em produção
+│   └── requirements.txt
+├── frontend/
+│   ├── index.html            o app (HTML + CSS + JS num arquivo, sem build)
+│   ├── config.js             endereço do backend quando hospedado separado
+│   └── data/                 pacotes pré-calculados (gerados por scripts/precompute.py)
+├── scripts/
+│   ├── horizons_probe.py     testa uma consulta real à Horizons
+│   ├── precompute.py         gera frontend/data/bundle-*.json para uso sem backend
+│   └── horizon_mask_from_dem.py  calcula o horizonte real de cada local a partir de um DEM do LOLA
+├── docs/api.md               referência da API com exemplos
+├── Dockerfile
+└── .github/workflows/tests.yml   roda os testes a cada push
+```
+
+## Como os dados fluem
+
+```
+navegador ──GET /api/bundle?start=…&days=30──▶ Flask
+                                               │  para cada local: Sol (10) e Terra (399) vistos de coord@301
+                                               │  para cada antena DSN: Lua (301) vista de coord@399
+                                               ▼
+                                   JPL Horizons API ──▶ cache em disco
+                                               │ (se falhar: modelo analítico + aviso)
+                                               ▼
+navegador ◀── séries horárias de elevação/azimute ── calcula janelas ao mover os controles
+```
+
+O frontend tenta três fontes, nesta ordem, e o selo no topo da página diz qual está em uso:
+
+1. **API** (`/api/bundle`): dados da Horizons.
+2. **Arquivo pré-calculado** (`frontend/data/bundle-AAAA-MM-DD-30d.json`): para GitHub Pages ou se a internet cair.
+3. **Cálculo no navegador**: modelo analítico, sempre disponível.
+
+O mapa de iluminação usa sempre o modelo analítico, porque precisaria de milhares de pontos e seria pesado consultar a Horizons para cada um.
+
+## A consulta à Horizons
+
+Cada série é uma efeméride de observador com azimute e elevação (quantidade 4) para um ponto na superfície:
+
+```
+https://ssd.jpl.nasa.gov/api/horizons.api?format=json
+  &COMMAND='10'                 Sol (Terra = '399', Lua = '301')
+  &EPHEM_TYPE='OBSERVER'
+  &CENTER='coord@301'           observador na superfície da Lua
+  &COORD_TYPE='GEODETIC'
+  &SITE_COORD='3,-85.9,0'       longitude leste, latitude, altitude (km)
+  &START_TIME='2026-11-08 00:00'&STOP_TIME='2026-12-08 00:00'&STEP_SIZE='60 m'
+  &QUANTITIES='4'&ANG_FORMAT='DEG'&CSV_FORMAT='YES'&APPARENT='AIRLESS'
+```
+
+A API é pública e não pede chave. A JPL pede uso moderado, por isso o backend faz no máximo 2 consultas ao mesmo tempo (`HORIZONS_WORKERS`) e guarda tudo em cache.
+
+## Configuração
+
+| Variável | Padrão | Para quê |
+|---|---|---|
+| `JANELA_PROVIDER` | `auto` | `auto` (Horizons, com reserva analítica), `horizons` (só Horizons; erro 503 se falhar) ou `analytic` (offline) |
+| `HORIZONS_TIMEOUT` | `60` | segundos por consulta |
+| `HORIZONS_WORKERS` | `2` | consultas simultâneas |
+| `JANELA_CACHE_DIR` | `backend/.cache` | onde guardar as respostas |
+
+## Testes
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest            # ou: python -m unittest discover -s tests -t .
+```
+
+Os testes não acessam a internet: a Horizons é simulada. `tests/fixtures/horizons_sun_from_moon.txt` é uma amostra **sintética** no formato da Horizons. Troque por uma resposta real assim que puderem:
+
+```bash
+python scripts/horizons_probe.py --save backend/tests/fixtures/real_sun_mal.txt
+```
+
+## Relevo real (o maior ganho de precisão)
+
+Sem máscara, cada local tem horizonte liso. No polo isso superestima o Sol, porque montanhas a dezenas de km bloqueiam um Sol que fica a 1–2° de altura. Para usar o relevo:
+
+1. Baixe um DEM polar estereográfico do polo sul em GeoTIFF (LOLA, via [NASA PGDA](https://pgda.gsfc.nasa.gov/) ou PDS Geosciences Node), cobrindo ~150 km ao redor dos locais.
+2. Gere as máscaras:
+   ```bash
+   pip install -r scripts/requirements.txt
+   python scripts/horizon_mask_from_dem.py caminho/DEM.tif --all
+   ```
+3. Reinicie o backend. O painel do local passa a mostrar o perfil do relevo no gráfico do horizonte.
+
+## Antes do dia da apresentação
+
+- Rode `python scripts/precompute.py --start <data> --days 30` para as datas que vão mostrar. O app funciona mesmo sem internet.
+- Confira as coordenadas em `backend/data/sites.json`: hoje são o centro **aproximado** de cada região.
+
+## Deploy
+
+**Tudo junto (Render, Railway, Fly.io):** use o `Dockerfile` da raiz. O app escuta na porta `$PORT` (padrão 8000).
+
+```bash
+docker build -t janela-polar .
+docker run -p 8000:8000 janela-polar
+```
+
+**Separado:** frontend no GitHub Pages (publique a pasta `frontend/`) e backend em outro serviço. Coloque a URL do backend em `frontend/config.js`.
+
+## Limitações conhecidas
+
+- Coordenadas das regiões Artemis III aproximadas.
+- O modelo analítico ignora nutação e libração física (erro de ~0,1–0,3°).
+- O raio do disco solar é fixo em 0,2666° (varia ±1,7% ao longo do ano).
+- A visibilidade das antenas DSN no modo analítico é geocêntrica (erro de até ~1° pela paralaxe da Lua). Com a Horizons é topocêntrica.
+
+## Créditos dos dados
+
+JPL Horizons (NASA/JPL Solar System Dynamics). Regiões candidatas Artemis III: NASA (out/2024). Algoritmos analíticos: J. Meeus, *Astronomical Algorithms*, 2ª ed.

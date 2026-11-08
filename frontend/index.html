@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Janela Polar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: console de missão — barra de controles, mapa polar + painel do local, linha do tempo, tabela comparativa */
+:root{
+  --bg:#0e1115; --panel:#151a20; --panel-2:#1b2129; --line:#29313b; --fg:#e4e7ea; --muted:#8e98a3;
+  --sun:#f0b443; --earth:#5ea8e4; --both:#6fcf9a; --warn:#e2725b;
+  --lit:#b8b2a6; --shade:#07090c; --grid:rgba(200,210,220,.14);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#eceef0; --panel:#ffffff; --panel-2:#f4f5f7; --line:#d4d9df; --fg:#141920; --muted:#5a6470;
+  --sun:#b87700; --earth:#1e6db0; --both:#23804f; --warn:#b5442c;
+  --lit:#9a9488; --shade:#2b3038; --grid:rgba(20,30,40,.14); color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#eceef0; --panel:#ffffff; --panel-2:#f4f5f7; --line:#d4d9df; --fg:#141920; --muted:#5a6470;
+  --sun:#b87700; --earth:#1e6db0; --both:#23804f; --warn:#b5442c;
+  --lit:#9a9488; --shade:#2b3038; --grid:rgba(20,30,40,.14); color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:20px;padding-block:20px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
+h1{font:700 2.4rem/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;margin:0}
+h1 span{color:var(--sun)}
+.sub{color:var(--muted);margin:4px 0 0;max-width:60ch}
+.tag{font:500 .75rem var(--f-mono);color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:3px;max-width:100%}
+.tag[data-state="horizons"]{color:var(--both);border-color:var(--both)}
+.tag[data-state="loading"]{color:var(--sun);border-color:var(--sun)}
+a.btn{font:600 .85rem var(--f-body);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:7px 12px;text-decoration:none}
+a.btn:hover{border-color:var(--muted)}
+h2{font:600 1.15rem/1.1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;margin:0;color:var(--fg)}
+.lbl{font:500 .7rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl output{font:500 .85rem var(--f-mono);color:var(--fg)}
+input[type=date],select{font:500 .9rem var(--f-mono);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:6px 8px}
+input[type=range]{width:150px;accent-color:var(--sun)}
+button{font:600 .85rem var(--f-body);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible,th:focus-visible,tr:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+.maphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.toggles{display:flex;gap:6px;flex-wrap:wrap}
+canvas{display:block;width:100%;touch-action:none}
+#map{aspect-ratio:1/1;max-width:100%;cursor:crosshair}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.site-title{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.site-title h3{font:700 1.9rem/1 var(--f-display);margin:0;letter-spacing:.02em}
+.coords{font:400 .85rem var(--f-mono);color:var(--muted)}
+.status{display:inline-flex;align-items:center;gap:8px;font:600 .8rem var(--f-mono);text-transform:uppercase;letter-spacing:.06em;padding:5px 10px;border-radius:999px;border:1px solid currentColor}
+.status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.readouts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ro{background:var(--panel-2);border:1px solid var(--line);border-radius:3px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.ro .v{font:500 1.35rem/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.ro .d{font-size:.8rem;color:var(--muted)}
+.ro.sun{border-left:3px solid var(--sun)} .ro.earth{border-left:3px solid var(--earth)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 .75rem var(--f-mono);padding:3px 8px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
+.chip.on{color:var(--earth);border-color:var(--earth)}
+.note{font-size:.85rem;color:var(--muted);margin:0;max-width:70ch}
+#horizon{height:170px}
+#timeline{height:280px;cursor:ew-resize}
+.tlhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.now{font:500 1rem var(--f-mono);font-variant-numeric:tabular-nums}
+#scrub{width:100%;accent-color:var(--fg)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:.88rem}
+th{font:500 .7rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+th.sorted{color:var(--fg)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.num{font-family:var(--f-mono)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel-2)}
+tbody tr.sel{background:var(--panel-2);box-shadow:inset 3px 0 0 var(--sun)}
+.bar{display:flex;align-items:center;gap:8px}
+.bar i{display:block;height:6px;border-radius:2px;background:var(--line);width:70px;position:relative;overflow:hidden}
+.bar i b{position:absolute;inset:0 auto 0 0;border-radius:2px}
+.ref{font:500 .65rem var(--f-mono);color:var(--muted);border:1px solid var(--line);padding:1px 5px;border-radius:2px;margin-left:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.cols ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:.9rem}
+.cols li{max-width:65ch}
+a{color:var(--earth)}
+code{font:400 .82rem var(--f-mono);background:var(--panel-2);padding:1px 4px;border-radius:2px;word-break:break-all}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Janela <span>Polar</span></h1>
+    <p class="sub">Compare locais de pouso no polo sul da Lua: onde e quando há Sol para gerar energia e Terra acima do horizonte para falar direto com a Deep Space Network.</p>
+  </div>
+  <span class="tag" id="src" data-state="loading" title="De onde vêm as posições do Sol e da Terra">Calculando no navegador…</span>
+</header>
+
+<section class="card" aria-label="Parâmetros">
+  <div class="controls">
+    <label class="ctl"><span class="lbl">Início (UTC)</span><input type="date" id="start" value="2026-10-13"></label>
+    <label class="ctl"><span class="lbl">Período</span>
+      <select id="dur"><option value="14">14 dias</option><option value="30" selected>30 dias (≈1 lunação)</option><option value="60">60 dias</option><option value="90">90 dias</option></select></label>
+    <label class="ctl"><span class="lbl">Máscara do horizonte <output id="maskO"></output></span><input type="range" id="mask" min="-1" max="5" step="0.1" value="0.5"></label>
+    <label class="ctl"><span class="lbl">Altura do ponto sobre o entorno <output id="hgtO"></output></span><input type="range" id="hgt" min="0" max="3000" step="50" value="0"></label>
+    <label class="ctl"><span class="lbl">Elevação mínima DSN <output id="dsnO"></output></span><input type="range" id="dsn" min="5" max="25" step="1" value="10"></label>
+  </div>
+</section>
+
+<div class="main">
+  <section class="card" aria-label="Mapa do polo sul">
+    <div class="maphead">
+      <h2>Polo sul lunar · 83°S–90°S</h2>
+      <div class="toggles">
+        <button id="tSun" aria-pressed="true">Luz do Sol</button>
+        <button id="tEarth" aria-pressed="false">Visada da Terra</button>
+      </div>
+    </div>
+    <canvas id="map" width="600" height="600" aria-label="Mapa polar estereográfico com os locais candidatos"></canvas>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--lit)"></span>Iluminado (esfera lisa)</span>
+      <span><span class="sw" style="background:var(--earth)"></span>Terra acima do horizonte</span>
+      <span><span class="sw" style="background:var(--sun)"></span>Direção do Sol</span>
+      <span>Clique num ponto para selecionar</span>
+    </div>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <div class="site-title">
+      <h3 id="sName">—</h3>
+      <span class="coords" id="sCoords"></span>
+    </div>
+    <div><span class="status" id="sStatus">—</span></div>
+    <div class="readouts">
+      <div class="ro sun"><span class="lbl">Sol · elevação / azimute</span><span class="v" id="rSun">—</span><span class="d" id="rSunD"></span></div>
+      <div class="ro earth"><span class="lbl">Terra · elevação / azimute</span><span class="v" id="rEarth">—</span><span class="d" id="rEarthD"></span></div>
+      <div class="ro"><span class="lbl">Próxima janela Sol + Terra</span><span class="v" id="rNext">—</span><span class="d" id="rNextD"></span></div>
+      <div class="ro"><span class="lbl">Noite mais longa no período</span><span class="v" id="rDark">—</span><span class="d">horas seguidas sem Sol</span></div>
+    </div>
+    <div class="ctl"><span class="lbl">Estações DSN com a Lua acima da elevação mínima</span>
+      <div class="chips" id="dsnChips"></div></div>
+    <div class="ctl"><span class="lbl">Horizonte local · trajetórias no período</span>
+      <canvas id="horizon" aria-label="Vista do horizonte com trajetórias do Sol e da Terra"></canvas></div>
+    <p class="note" id="sNote"></p>
+  </section>
+</div>
+
+<section class="card" aria-label="Linha do tempo">
+  <div class="tlhead">
+    <h2>Linha do tempo · <span id="tlName"></span></h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span class="now" id="nowLbl"></span>
+      <a class="btn" id="csv" href="#" hidden>Baixar janelas (CSV)</a>
+      <button id="play" aria-pressed="false">▶ Animar</button>
+    </div>
+  </div>
+  <canvas id="timeline" aria-label="Elevação do Sol e da Terra ao longo do período"></canvas>
+  <input type="range" id="scrub" min="0" max="719" value="0" aria-label="Momento selecionado">
+  <div class="legend">
+    <span><span class="sw" style="background:var(--sun)"></span>Elevação do Sol (centro do disco)</span>
+    <span><span class="sw" style="background:var(--earth)"></span>Elevação da Terra</span>
+    <span><span class="sw" style="background:var(--both)"></span>Janela ideal: Sol + contato direto com a Terra</span>
+    <span>Linha tracejada: horizonte efetivo</span>
+  </div>
+</section>
+
+<section class="card" aria-label="Comparação">
+  <div class="tlhead"><h2>Comparar locais no período</h2><span class="lbl">clique no cabeçalho para ordenar</span></div>
+  <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+  <p class="note">Índice = 50% energia solar média + 30% tempo de contato direto (DTE) + 20% penalidade pela noite mais longa. É um peso de exemplo para a demo; a equipe pode expor esses pesos como controles.</p>
+</section>
+
+<section class="cols">
+  <div class="card"><h2>Como o cálculo funciona</h2><ul>
+    <li>Com o servidor ligado, azimute e elevação do Sol e da Terra em cada local vêm da JPL Horizons (efeméride DE441), e a visibilidade da Lua em cada antena da DSN também. O selo no topo da página mostra a fonte em uso.</li>
+    <li>Sem servidor, o app calcula sozinho por séries analíticas (Meeus, cap. 25, 47 e 53), com ~0,1–0,3° de erro. O mapa de iluminação sempre usa esse modelo.</li>
+    <li>Para cada local, os vetores do Sol e da Terra são levados ao referencial local (leste, norte, zênite) com raio lunar de 1737,4 km, incluindo a paralaxe da Terra.</li>
+    <li>Fração do disco solar visível: segmento do disco (raio 0,267°) acima do horizonte efetivo = máscara − depressão do horizonte pela altura do ponto.</li>
+    <li>DTE exige Terra acima do horizonte e ao menos uma estação DSN (Goldstone, Madri, Canberra) vendo a Lua acima da elevação mínima.</li>
+  </ul></div>
+  <div class="card"><h2>Dados da NASA para a versão final</h2><ul>
+    <li><b>JPL Horizons API</b> — efemérides oficiais (DE441). Consulte o Sol (10) e a Terra (399) com <code>CENTER='coord@301'</code> e as coordenadas do local para obter azimute/elevação exatos. <a href="https://ssd-api.jpl.nasa.gov/doc/horizons.html" target="_blank" rel="noopener">documentação</a></li>
+    <li><b>LRO / LOLA — mapas de iluminação e máscaras de horizonte</b> (NASA PGDA). Trocam a máscara uniforme por um horizonte real por azimute, essencial no polo. <a href="https://pgda.gsfc.nasa.gov/" target="_blank" rel="noopener">pgda.gsfc.nasa.gov</a></li>
+    <li><b>Moon Trek</b> (JPL) — mosaicos e DEMs do polo sul para o mapa de fundo. <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">trek.nasa.gov/moon</a></li>
+    <li><b>NAIF SPICE</b> — kernels da Lua (frame ME/PA) para um backend Python com <code>spiceypy</code>. <a href="https://naif.jpl.nasa.gov/naif/" target="_blank" rel="noopener">naif.jpl.nasa.gov</a></li>
+  </ul></div>
+  <div class="card"><h2>Limitações desta demo</h2><ul>
+    <li>Coordenadas das regiões Artemis III são aproximadas (centro estimado da região de ~15 km); confira nos arquivos oficiais antes de apresentar.</li>
+    <li>Sem relevo real por padrão: cada local usa um horizonte liso. No polo, crateras e montanhas mudam tudo. Gere máscaras de relevo a partir de um DEM do LOLA com scripts/horizon_mask_from_dem.py e o app passa a usá-las.</li>
+    <li>Ignora nutação, libração física e refração (a Lua não tem atmosfera).</li>
+  </ul></div>
+</section>
+</div>
+
+<script src="config.js"></script>
+<script>
+/* ===== Motor de efemérides (Meeus) =====
+   Usado (1) para o mapa de iluminação e (2) como reserva quando não há servidor.
+   A mesma matemática está em backend/app/analytic.py. */
+const D2R=Math.PI/180,R2D=180/Math.PI,RM=1737.4,SUN_R=0.2666;
+const sd=x=>Math.sin(x*D2R),cd=x=>Math.cos(x*D2R);
+const norm=a=>{a%=360;return a<0?a+360:a};
+const wrap=a=>{a=norm(a);return a>180?a-360:a};
+function moonGeo(T){
+ const Lp=norm(218.3164477+481267.88123421*T),D=norm(297.8501921+445267.1114034*T),M=norm(357.5291092+35999.0502909*T),Mp=norm(134.9633964+477198.8675055*T),F=norm(93.2720950+483202.0175233*T),Om=norm(125.0445479-1934.1362891*T),E=1-0.002516*T,s=sd,c=cd;
+ const L=6288774*s(Mp)+1274027*s(2*D-Mp)+658314*s(2*D)+213618*s(2*Mp)-185116*E*s(M)-114332*s(2*F)+58793*s(2*D-2*Mp)+57066*E*s(2*D-M-Mp)+53322*s(2*D+Mp)+45758*E*s(2*D-M)-40923*E*s(M-Mp)-34720*s(D)-30383*E*s(M+Mp)+15327*s(2*D-2*F)-12528*s(Mp+2*F)+10980*s(Mp-2*F)+10675*s(4*D-Mp)+10034*s(3*Mp)+8548*s(4*D-2*Mp)-7888*E*s(2*D+M-Mp)-6766*E*s(2*D+M)-5163*s(D-Mp);
+ const B=5128122*s(F)+280602*s(Mp+F)+277693*s(Mp-F)+173237*s(2*D-F)+55413*s(2*D-Mp+F)+46271*s(2*D-Mp-F)+32573*s(2*D+F)+17198*s(2*Mp+F)+9266*s(2*D+Mp-F)+8822*s(2*Mp-F)+8216*E*s(2*D-M-F)+4324*s(2*D-2*Mp-F)+4200*s(2*D+Mp+F);
+ const R=-20905355*c(Mp)-3699111*c(2*D-Mp)-2955968*c(2*D)-569925*c(2*Mp)+48888*E*c(M)-3149*c(2*F)+246158*c(2*D-2*Mp)-152138*E*c(2*D-M-Mp)-170733*c(2*D+Mp)-204586*E*c(2*D-M)-129620*E*c(M-Mp)+108743*c(D)+104755*E*c(M+Mp)+10321*c(2*D-2*F)+79661*c(Mp-2*F)-34782*c(4*D-Mp)-23210*c(3*Mp)-21636*c(4*D-2*Mp)+24208*E*c(2*D+M-Mp)+30824*E*c(2*D+M)-8379*c(D-Mp);
+ return {lam:norm(Lp+L/1e6),bet:B/1e6,dist:385000.56+R/1000,F,Om};
+}
+function sunGeo(T){const L0=norm(280.46646+36000.76983*T),M=norm(357.52911+35999.05029*T);
+ const C=(1.914602-0.004817*T)*sd(M)+0.019993*sd(2*M)+0.000289*sd(3*M);const e=0.016708634,v=M+C;
+ return {lam:norm(L0+C),dist:149597870.7*1.000001018*(1-e*e)/(1+e*cd(v))};}
+const INC=1.54242;
+function selen(lam,bet,mo){const W=lam-mo.Om;
+ const A=Math.atan2(sd(W)*cd(bet)*cd(INC)-sd(bet)*sd(INC),cd(W)*cd(bet))*R2D;
+ return {lon:wrap(A-mo.F),lat:Math.asin(-sd(W)*cd(bet)*sd(INC)-sd(bet)*cd(INC))*R2D};}
+function ephem(ms){const jd=ms/864e5+2440587.5,T=(jd-2451545)/36525;
+ const mo=moonGeo(T),su=sunGeo(T);
+ const earth=selen(mo.lam,mo.bet,mo);earth.dist=mo.dist;
+ const r=mo.dist/su.dist,lamH=su.lam+180+r*R2D*cd(mo.bet)*sd(su.lam-mo.lam);
+ const sun=selen(lamH,r*mo.bet,mo);sun.dist=su.dist;
+ const eps=23.4393-0.013*T;
+ const ra=Math.atan2(sd(mo.lam)*cd(eps)-Math.tan(mo.bet*D2R)*sd(eps),cd(mo.lam))*R2D;
+ const dec=Math.asin(sd(mo.bet)*cd(eps)+cd(mo.bet)*sd(eps)*sd(mo.lam))*R2D;
+ const gmst=norm(280.46061837+360.98564736629*(jd-2451545));
+ return {earth,sun,ra,dec,gmst};}
+function topo(lat,lon,body){
+ const bx=body.dist*cd(body.lat)*cd(body.lon),by=body.dist*cd(body.lat)*sd(body.lon),bz=body.dist*sd(body.lat);
+ const ux=cd(lat)*cd(lon),uy=cd(lat)*sd(lon),uz=sd(lat);
+ const vx=bx-RM*ux,vy=by-RM*uy,vz=bz-RM*uz,n=Math.hypot(vx,vy,vz);
+ const up=(vx*ux+vy*uy+vz*uz)/n,ea=(-vx*sd(lon)+vy*cd(lon))/n,no=(-vx*sd(lat)*cd(lon)-vy*sd(lat)*sd(lon)+vz*cd(lat))/n;
+ return {el:Math.asin(Math.max(-1,Math.min(1,up)))*R2D,az:norm(Math.atan2(ea,no)*R2D)};}
+function discFrac(el,h){const d=(el-h)/SUN_R;if(d>=1)return 1;if(d<=-1)return 0;return (Math.PI-Math.acos(d)+d*Math.sqrt(1-d*d))/Math.PI;}
+let DSN=[{id:"gdscc",n:"Goldstone",lat:35.43,lon:-116.89},{id:"mdscc",n:"Madri",lat:40.43,lon:-4.25},{id:"cdscc",n:"Canberra",lat:-35.40,lon:148.98}];
+function dsnEl(e,st){const H=e.gmst+st.lon-e.ra;return Math.asin(sd(st.lat)*sd(e.dec)+cd(st.lat)*cd(e.dec)*cd(H))*R2D;}
+
+/* ===== Locais (coordenadas aproximadas) =====
+   Lista de reserva. Quando o servidor responde, a lista vem de backend/data/sites.json. */
+let SITES=[
+ {id:"cab",n:"Pico perto de Cabeus B",lat:-83.6,lon:-49,d:"Região mais distante do polo; voltada para o lado visível, boa visada da Terra."},
+ {id:"haw",n:"Haworth",lat:-87.0,lon:-4,d:"Borda da cratera Haworth, vizinha de regiões permanentemente sombreadas."},
+ {id:"mal",n:"Maciço Malapert",lat:-85.9,lon:3,d:"Maciço alto voltado para a Terra; muito citado como ponto de retransmissão."},
+ {id:"mmp",n:"Platô Mons Mouton",lat:-84.7,lon:38,d:"Platô no topo de Mons Mouton, área alta e relativamente plana."},
+ {id:"mmo",n:"Mons Mouton",lat:-84.3,lon:31,d:"Encostas de Mons Mouton, uma das maiores elevações da região."},
+ {id:"nb1",n:"Borda Nobile 1",lat:-85.6,lon:45,d:"Borda da cratera Nobile, próxima a sombras permanentes."},
+ {id:"nb2",n:"Borda Nobile 2",lat:-84.3,lon:60,d:"Outro trecho da borda de Nobile, mais a leste."},
+ {id:"dg2",n:"Borda de Gerlache 2",lat:-88.4,lon:-64,d:"A mais próxima do polo (~50 km), sobre um relevo ~3 km acima do entorno."},
+ {id:"sla",n:"Planície Slater",lat:-87.6,lon:112,d:"Planície do lado oposto à Terra: compare a comunicação com os demais."},
+ {id:"shk",n:"Borda de Shackleton",lat:-89.7,lon:-130,ref:true,d:"Referência clássica de iluminação quase contínua (não está na lista de 9)."}
+];
+
+/* ===== Estado ===== */
+const $=id=>document.getElementById(id);
+const S={start:0,hours:720,t:0,sel:"mal",layer:{sun:true,earth:false},sort:{k:"score",dir:-1},raw:null,win:null,stats:null,src:"local",playing:false};
+const API_BASE=window.JANELA_API_BASE??(location.protocol==="file:"?"http://localhost:5000":"");
+const fmt=new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const fmtD=new Intl.DateTimeFormat("pt-BR",{timeZone:"UTC",day:"2-digit",month:"short"});
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function horizonEff(){const m=+$("mask").value,H=+$("hgt").value;const dip=Math.acos(RM/(RM+H/1000))*R2D;return m-dip;}
+
+/* ===== Dados: servidor (Horizons) → arquivo pré-calculado → cálculo local =====
+   Todas as fontes produzem o mesmo formato "raw":
+   { sites: {id: {se, sa, ee, ea, mask}}, dsnEl: [Float32Array por antena] } */
+function readPeriod(){
+ const [y,mo,d]=$("start").value.split("-").map(Number);
+ S.start=Date.UTC(y,(mo||1)-1,d||1);S.hours=+$("dur").value*24;
+}
+function localRaw(){
+ const N=S.hours+1,sites={},dsn=DSN.map(()=>new Float32Array(N));
+ for(const s of SITES)sites[s.id]={se:new Float32Array(N),sa:new Float32Array(N),ee:new Float32Array(N),ea:new Float32Array(N),mask:null};
+ for(let i=0;i<N;i++){const e=ephem(S.start+i*36e5);
+  DSN.forEach((st,k)=>dsn[k][i]=dsnEl(e,st));
+  for(const s of SITES){const a=topo(s.lat,s.lon,e.sun),b=topo(s.lat,s.lon,e.earth),r=sites[s.id];r.se[i]=a.el;r.sa[i]=a.az;r.ee[i]=b.el;r.ea[i]=b.az;}}
+ return {sites,dsnEl:dsn};
+}
+const F32=a=>Float32Array.from(a,v=>v==null?NaN:v);
+function fromBundle(b){
+ if(b.step_min!==60)throw new Error("o app espera passo de 60 min");
+ if(b.site_list)SITES=b.site_list.map(s=>({id:s.id,n:s.name,lat:s.lat,lon:s.lon,d:s.desc||"",ref:!!s.ref}));
+ if(b.dsn&&b.dsn.stations)DSN=b.dsn.stations.map(s=>({id:s.id,n:s.name,lat:s.lat,lon:s.lon}));
+ const sites={};
+ for(const [id,r] of Object.entries(b.sites))sites[id]={se:F32(r.sun_el),sa:F32(r.sun_az),ee:F32(r.earth_el),ea:F32(r.earth_az),mask:r.mask||null};
+ S.hours=b.n-1;
+ return {sites,dsnEl:DSN.map(st=>F32(b.dsn.elev[st.id]))};
+}
+async function fetchJSON(url,ms){
+ const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);
+ try{const r=await fetch(url,{signal:c.signal});if(!r.ok)throw new Error("HTTP "+r.status);return await r.json();}
+ finally{clearTimeout(t);}
+}
+const SRC_LABEL={
+ horizons:"Fonte: JPL Horizons (servidor)",
+ mixed:"Fonte: Horizons + modelo analítico (servidor)",
+ analytic:"Fonte: modelo analítico (servidor)",
+ pre:"Fonte: dados pré-calculados",
+ local:"Fonte: cálculo no navegador (sem servidor)",
+ loading:"Consultando a JPL Horizons… a primeira vez pode levar ~1 min"};
+function setSource(kind,detail){
+ S.src=kind;const el=$("src");el.dataset.state=kind==="horizons"?"horizons":kind==="loading"?"loading":"other";
+ el.textContent=SRC_LABEL[kind]+(detail?` · ${detail}`:"");
+ const server=["horizons","mixed","analytic"].includes(kind);$("csv").hidden=!server;
+}
+let loadToken=0;
+async function loadRemote(){
+ const token=++loadToken,date=$("start").value,days=$("dur").value;
+ setSource("loading");
+ try{
+  const b=await fetchJSON(`${API_BASE}/api/bundle?start=${date}&days=${days}&step=60`,180000);
+  if(token!==loadToken)return;
+  S.raw=fromBundle(b);setSource(b.source,b.warnings&&b.warnings.length?`${b.warnings.length} aviso(s)`:"");
+ }catch(err){
+  if(token!==loadToken)return;
+  try{
+   const b=await fetchJSON(`data/bundle-${date}-${days}d.json`,8000);
+   if(token!==loadToken)return;
+   S.raw=fromBundle(b);setSource("pre",b.source==="horizons"?"JPL Horizons":"modelo analítico");
+  }catch(_){if(token!==loadToken)return;setSource("local");return;}
+ }
+ afterData();
+}
+function computeWindows(){
+ const H0=horizonEff(),dmin=+$("dsn").value,N=S.hours+1,R=S.raw;
+ const dsnMask=new Uint8Array(N);
+ for(let i=0;i<N;i++){let m=0;R.dsnEl.forEach((a,k)=>{if(a[i]>=dmin)m|=1<<k});dsnMask[i]=m;}
+ const win={},stats={};
+ for(const s of SITES){const r=R.sites[s.id];if(!r)continue;const mask=r.mask;
+  const hz=az=>H0+(mask&&!isNaN(az)?(mask[Math.round(norm(az))%360]??0):0);
+  const fr=new Float32Array(N),ok=new Uint8Array(N),hs=new Float32Array(N),he=new Float32Array(N);
+  let en=0,lit=0,dte=0,both=0,dark=0,maxDark=0,w=0,maxWin=0;
+  for(let i=0;i<N;i++){hs[i]=hz(r.sa[i]);he[i]=hz(r.ea[i]);fr[i]=isNaN(r.se[i])?0:discFrac(r.se[i],hs[i]);
+   const L=fr[i]>=0.5,C=r.ee[i]>he[i]&&dsnMask[i]>0;ok[i]=(L?1:0)|(C?2:0);
+   en+=fr[i];if(fr[i]>0)lit++;if(C)dte++;if(L&&C)both++;
+   dark=fr[i]===0?dark+1:0;maxDark=Math.max(maxDark,dark);
+   w=(L&&C)?w+1:0;maxWin=Math.max(maxWin,w);}
+  win[s.id]={fr,ok,hs,he,mask,hz};
+  const E=en/N,D=dte/N;
+  stats[s.id]={energy:E,lit:lit/N,dte:D,both:both/N,maxDark,maxWin,score:100*(0.5*E+0.3*D+0.2*(1-maxDark/N))};}
+ SITES=SITES.filter(s=>win[s.id]);if(!win[S.sel])S.sel=SITES[0].id;
+ S.win=win;S.dsnMask=dsnMask;S.stats=stats;S.h0=H0;
+ $("scrub").max=S.hours;if(S.t>S.hours)S.t=0;$("scrub").value=S.t;
+}
+const site=id=>Object.assign({},S.raw.sites[id],S.win[id]);
+
+/* ===== Canvas util ===== */
+function fit(cv){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;const w=Math.max(1,Math.round(r.width)),h=Math.max(1,Math.round(r.height));
+ if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);return {ctx,w,h};}
+function rgba(hex,a){hex=hex.replace("#","");if(hex.length===3)hex=hex.split("").map(c=>c+c).join("");const n=parseInt(hex,16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+
+/* ===== Mapa polar ===== */
+const MAXC=7; // colatitude máxima (graus) => 83°S
+const off=document.createElement("canvas");off.width=off.height=150;
+function proj(lat,lon,R,cx,cy){const r=R*Math.tan((90+lat)/2*D2R)/Math.tan(MAXC/2*D2R);return [cx+r*sd(lon),cy-r*cd(lon)];}
+function unproj(x,y,R,cx,cy){const dx=x-cx,dy=cy-y,r=Math.hypot(dx,dy)/R;const colat=2*Math.atan(r*Math.tan(MAXC/2*D2R))*R2D;return {lat:colat-90,lon:Math.atan2(dx,dy)*R2D,inside:r<=1};}
+function drawMap(){
+ const cv=$("map"),{ctx,w,h}=fit(cv),cx=w/2,cy=h/2,R=Math.min(w,h)/2-26;
+ ctx.clearRect(0,0,w,h);
+ // o mapa usa o modelo analítico com horizonte liso (seria pesado pedir 22 mil pontos à Horizons)
+ const e=ephem(S.start+S.t*36e5),H=S.h0,o=off.getContext("2d"),img=o.createImageData(150,150);
+ const lit=col("--lit"),sh=col("--shade"),ea=col("--earth");
+ const pl=parseInt(lit.slice(1),16),ps=parseInt(sh.slice(1),16),pe=parseInt(ea.slice(1),16);
+ const L=[pl>>16&255,pl>>8&255,pl&255],Sh=[ps>>16&255,ps>>8&255,ps&255],Ea=[pe>>16&255,pe>>8&255,pe&255];
+ for(let j=0;j<150;j++)for(let i=0;i<150;i++){
+  const p=unproj(i+.5,j+.5,75,75,75),k=(j*150+i)*4;if(!p.inside){img.data[k+3]=0;continue;}
+  let c=[...Sh];
+  if(S.layer.sun){const f=discFrac(topo(p.lat,p.lon,e.sun).el,H);c=[0,1,2].map(q=>Sh[q]+(L[q]-Sh[q])*(f>0?0.35+0.65*f:0.08));}
+  else c=[0,1,2].map(q=>Sh[q]+(L[q]-Sh[q])*0.3);
+  if(S.layer.earth&&topo(p.lat,p.lon,e.earth).el>H)c=[0,1,2].map(q=>c[q]*0.55+Ea[q]*0.45);
+  img.data[k]=c[0];img.data[k+1]=c[1];img.data[k+2]=c[2];img.data[k+3]=255;}
+ o.putImageData(img,0,0);
+ ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();ctx.imageSmoothingEnabled=true;ctx.drawImage(off,cx-R,cy-R,2*R,2*R);ctx.restore();
+ // graticule
+ ctx.strokeStyle=col("--grid");ctx.lineWidth=1;ctx.fillStyle=col("--muted");ctx.font="11px "+col("--f-mono");
+ for(const la of [-89,-88,-87,-86,-85,-84]){const [,y]=proj(la,0,R,cx,cy);const r=cy-y;ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.stroke();}
+ ctx.textAlign="left";for(const la of [-88,-86,-84]){const [x,y]=proj(la,15,R,cx,cy);ctx.fillText(Math.abs(la)+"°S",x+3,y-3);}
+ for(let lo=0;lo<360;lo+=30){const [x,y]=proj(-83,lo,R,cx,cy);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+  const [lx,ly]=proj(-83,lo,R+14,cx,cy);ctx.textAlign="center";ctx.textBaseline="middle";const v=wrap(lo);ctx.fillText(v===0?"0°":v===180?"180°":Math.abs(v)+"°"+(v>0?"L":"O"),lx,ly);}
+ ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.strokeStyle=col("--line");ctx.stroke();
+ // direction arrows on rim
+ const arrow=(lon,c,label)=>{const [x1,y1]=proj(-83.4,lon,R,cx,cy),[x2,y2]=proj(-84.6,lon,R,cx,cy);ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();ctx.arc(x1,y1,6,0,7);ctx.fill();ctx.font="600 11px "+col("--f-mono");const [tx,ty]=proj(-85.4,lon,R,cx,cy);ctx.textAlign="center";ctx.fillText(label,tx,ty);ctx.lineWidth=1;};
+ arrow(e.sun.lon,col("--sun"),"SOL");arrow(e.earth.lon,col("--earth"),"TERRA");
+ // sites
+ for(const s of SITES){const [x,y]=proj(s.lat,s.lon,R,cx,cy),sel=s.id===S.sel,ok=S.win[s.id].ok[S.t];
+  const c=ok===3?col("--both"):ok===1?col("--sun"):ok===2?col("--earth"):col("--muted");
+  ctx.beginPath();ctx.arc(x,y,sel?8:5.5,0,7);ctx.fillStyle=c;ctx.fill();ctx.lineWidth=sel?2.5:1.5;ctx.strokeStyle=col("--bg");ctx.stroke();
+  if(sel){ctx.beginPath();ctx.arc(x,y,13,0,7);ctx.strokeStyle=col("--fg");ctx.lineWidth=1.5;ctx.stroke();}
+  ctx.font=(sel?"600 12px ":"11px ")+col("--f-body");ctx.textAlign=x>cx?"left":"right";ctx.textBaseline="middle";
+  const tx=x+(x>cx?12:-12);ctx.lineJoin="round";ctx.lineWidth=3;ctx.strokeStyle=rgba(col("--panel"),0.85);ctx.strokeText(s.n,tx,y);ctx.fillStyle=col("--fg");ctx.fillText(s.n,tx,y);ctx.lineWidth=1;}
+ cv._geo={R,cx,cy};
+}
+$("map").addEventListener("click",ev=>{const g=$("map")._geo,r=$("map").getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
+ let best=null,bd=22;for(const s of SITES){const [sx,sy]=proj(s.lat,s.lon,g.R,g.cx,g.cy),d=Math.hypot(sx-x,sy-y);if(d<bd){bd=d;best=s;}}
+ if(best){S.sel=best.id;renderAll();}});
+$("map").addEventListener("mousemove",ev=>{const g=$("map")._geo;if(!g)return;const r=$("map").getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
+ $("map").style.cursor=SITES.some(s=>{const [sx,sy]=proj(s.lat,s.lon,g.R,g.cx,g.cy);return Math.hypot(sx-x,sy-y)<22})?"pointer":"crosshair";});
+
+/* ===== Horizonte ===== */
+function drawHorizon(){
+ const cv=$("horizon"),{ctx,w,h}=fit(cv),D=site(S.sel),pad={l:34,r:8,t:8,b:20};
+ const lo=-8,hi=10,X=a=>pad.l+a/360*(w-pad.l-pad.r),Y=v=>pad.t+(hi-v)/(hi-lo)*(h-pad.t-pad.b);
+ ctx.clearRect(0,0,w,h);
+ // perfil do horizonte: liso, ou o relevo real se houver máscara (data/horizon_masks)
+ const prof=[];for(let a=0;a<=360;a+=2)prof.push([X(a),Y(Math.max(lo,Math.min(hi,D.hz(a))))]);
+ ctx.beginPath();ctx.moveTo(pad.l,Y(lo));prof.forEach(([x,y])=>ctx.lineTo(x,y));ctx.lineTo(w-pad.r,Y(lo));ctx.closePath();
+ ctx.fillStyle=rgba(col("--shade"),0.55);ctx.fill();
+ ctx.strokeStyle=col("--grid");ctx.fillStyle=col("--muted");ctx.font="10px "+col("--f-mono");ctx.textAlign="right";ctx.textBaseline="middle";
+ for(let v=-8;v<=10;v+=2){ctx.beginPath();ctx.moveTo(pad.l,Y(v));ctx.lineTo(w-pad.r,Y(v));ctx.stroke();if(v%4===0)ctx.fillText(v+"°",pad.l-4,Y(v));}
+ ctx.textAlign="center";ctx.textBaseline="top";[["N",0],["L",90],["S",180],["O",270],["N",360]].forEach(([t,a])=>ctx.fillText(t,X(a),h-pad.b+4));
+ ctx.setLineDash([4,3]);ctx.strokeStyle=col("--fg");ctx.beginPath();prof.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();ctx.setLineDash([]);
+ const track=(el,az,c)=>{ctx.fillStyle=rgba(c,0.35);for(let i=0;i<el.length;i+=2){const v=el[i];if(v<lo||v>hi)continue;ctx.fillRect(X(az[i])-1,Y(v)-1,2,2);}};
+ track(D.se,D.sa,col("--sun"));track(D.ee,D.ea,col("--earth"));
+ const ppd=(h-pad.t-pad.b)/(hi-lo);
+ const dot=(el,az,c,r)=>{if(el<lo||el>hi)return;ctx.beginPath();ctx.arc(X(az),Y(el),r,0,7);ctx.fillStyle=c;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=col("--panel");ctx.stroke();};
+ dot(D.se[S.t],D.sa[S.t],col("--sun"),Math.max(5,SUN_R*ppd));dot(D.ee[S.t],D.ea[S.t],col("--earth"),Math.max(5,0.95*ppd));
+}
+
+/* ===== Linha do tempo ===== */
+function drawTimeline(){
+ const cv=$("timeline"),{ctx,w,h}=fit(cv),D=site(S.sel),N=S.hours+1,pad={l:38,r:10,t:10,b:74};
+ let lo=-6,hi=4;for(let i=0;i<N;i++){if(!isNaN(D.se[i])){hi=Math.max(hi,D.se[i],D.ee[i]);lo=Math.min(lo,D.se[i],D.ee[i],D.hs[i]-2);}}
+ hi=Math.ceil(hi+1);lo=Math.max(-14,Math.floor(lo-1));
+ const X=i=>pad.l+i/(N-1)*(w-pad.l-pad.r),Y=v=>pad.t+(hi-v)/(hi-lo)*(h-pad.t-pad.b);
+ ctx.clearRect(0,0,w,h);
+ ctx.font="10px "+col("--f-mono");ctx.fillStyle=col("--muted");ctx.strokeStyle=col("--grid");ctx.textAlign="right";ctx.textBaseline="middle";
+ const st=hi-lo>16?4:2;for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st){ctx.beginPath();ctx.moveTo(pad.l,Y(v));ctx.lineTo(w-pad.r,Y(v));ctx.stroke();ctx.fillText(v+"°",pad.l-5,Y(v));}
+ // day ticks
+ const days=S.hours/24,every=days>45?10:days>20?5:2;ctx.textAlign="center";ctx.textBaseline="top";
+ for(let d=0;d<=days;d+=every){const x=X(d*24);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,h-pad.b+50);ctx.stroke();ctx.fillText(fmtD.format(S.start+d*864e5),x,h-18);}
+ // horizonte efetivo na direção do Sol (reto se não houver máscara de relevo)
+ ctx.setLineDash([4,3]);ctx.strokeStyle=col("--fg");ctx.beginPath();for(let i=0;i<N;i++){const x=X(i),y=Y(D.hs[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();ctx.setLineDash([]);
+ const line=(arr,c)=>{ctx.beginPath();for(let i=0;i<N;i++){const x=X(i),y=Y(arr[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.strokeStyle=c;ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;};
+ line(D.ee,col("--earth"));line(D.se,col("--sun"));
+ // bands
+ const rows=[["Sol",v=>v&1,col("--sun")],["DTE",v=>v&2,col("--earth")],["Ambos",v=>v===3,col("--both")]];
+ rows.forEach(([lab,f,c],r)=>{const y=h-pad.b+8+r*14;ctx.fillStyle=col("--panel-2");ctx.fillRect(pad.l,y,w-pad.l-pad.r,10);ctx.fillStyle=c;
+  let s=-1;for(let i=0;i<=N;i++){const on=i<N&&f(D.ok[i]);if(on&&s<0)s=i;if(!on&&s>=0){ctx.fillRect(X(s),y,Math.max(1,X(i-1)-X(s)+ (w-pad.l-pad.r)/(N-1)),10);s=-1;}}
+  ctx.fillStyle=col("--muted");ctx.textAlign="right";ctx.textBaseline="middle";ctx.fillText(lab,pad.l-5,y+5);});
+ // cursor
+ const cx=X(S.t);ctx.strokeStyle=col("--fg");ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,pad.t);ctx.lineTo(cx,h-pad.b+50);ctx.stroke();ctx.lineWidth=1;
+ [[D.se[S.t],col("--sun")],[D.ee[S.t],col("--earth")]].forEach(([v,c])=>{ctx.beginPath();ctx.arc(cx,Y(v),4.5,0,7);ctx.fillStyle=c;ctx.fill();ctx.strokeStyle=col("--panel");ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;});
+ cv._geo={pad,w,N};
+}
+let dragging=false;
+function tlSet(ev){const g=$("timeline")._geo,r=$("timeline").getBoundingClientRect();const x=ev.clientX-r.left;S.t=Math.round(Math.max(0,Math.min(1,(x-g.pad.l)/(g.w-g.pad.l-g.pad.r)))*(g.N-1));$("scrub").value=S.t;renderTime();}
+$("timeline").addEventListener("pointerdown",e=>{dragging=true;$("timeline").setPointerCapture(e.pointerId);tlSet(e);});
+$("timeline").addEventListener("pointermove",e=>{if(dragging)tlSet(e);});
+$("timeline").addEventListener("pointerup",()=>dragging=false);
+
+/* ===== Painel ===== */
+function panel(){
+ const s=SITES.find(x=>x.id===S.sel),D=site(s.id),st=S.stats[s.id],t=S.t,ok=D.ok[t];
+ $("sName").textContent=s.n;$("tlName").textContent=s.n;
+ $("sCoords").textContent=`~${Math.abs(s.lat).toFixed(1)}°S · ${Math.abs(s.lon)}°${s.lon>=0?"L":"O"}`;
+ const stx=[["Escuro e sem contato","--muted"],["Só Sol","--sun"],["Só contato com a Terra","--earth"],["Janela ideal: Sol + Terra","--both"]][ok];
+ $("sStatus").textContent=stx[0];$("sStatus").style.color=`var(${stx[1]})`;
+ $("rSun").textContent=`${D.se[t].toFixed(2)}° / ${D.sa[t].toFixed(0)}°`;
+ $("rSunD").textContent=`${Math.round(D.fr[t]*100)}% do disco acima do horizonte efetivo`;
+ $("rEarth").textContent=`${D.ee[t].toFixed(2)}° / ${D.ea[t].toFixed(0)}°`;
+ $("rEarthD").textContent=D.ee[t]>D.he[t]?(S.dsnMask[t]?"Visível e coberta pela DSN":"Visível, mas sem estação DSN"):"Abaixo do horizonte";
+ let nx=-1,len=0;for(let i=t;i<=S.hours;i++){if(D.ok[i]===3){if(nx<0)nx=i;len++;}else if(nx>=0)break;}
+ if(nx<0){$("rNext").textContent="nenhuma";$("rNextD").textContent="no restante do período";}
+ else{$("rNext").textContent=nx===t?"agora":`em ${nx-t} h`;$("rNextD").textContent=`${fmt.format(S.start+nx*36e5)} · dura ${len}${nx+len>S.hours?"+":""} h`;}
+ $("rDark").textContent=`${st.maxDark} h`;
+ $("dsnChips").innerHTML=DSN.map((d,k)=>`<span class="chip ${S.dsnMask[t]>>k&1?"on":""}">${d.n}</span>`).join("");
+ $("sNote").textContent=s.d+(D.mask?" Horizonte com relevo real (máscara de terreno).":"");
+ const q=new URLSearchParams({site:s.id,start:$("start").value,days:$("dur").value,step:60,margin:$("mask").value,height:$("hgt").value,dsn_min:$("dsn").value,format:"csv"});
+ $("csv").href=`${API_BASE}/api/windows?${q}`;
+ $("nowLbl").textContent=fmt.format(S.start+t*36e5)+" UTC";
+}
+
+/* ===== Tabela ===== */
+const COLS=[["n","Local"],["energy","Energia solar"],["lit","Com Sol"],["dte","Contato DTE"],["both","Sol + DTE"],["maxDark","Noite mais longa"],["maxWin","Maior janela ideal"],["score","Índice"]];
+function table(){
+ $("tbl").tHead.innerHTML="<tr>"+COLS.map(([k,l])=>`<th tabindex="0" data-k="${k}" class="${S.sort.k===k?"sorted":""}" aria-sort="${S.sort.k===k?(S.sort.dir>0?"ascending":"descending"):"none"}">${l}${S.sort.k===k?(S.sort.dir>0?" ↑":" ↓"):""}</th>`).join("")+"</tr>";
+ const rows=SITES.map(s=>({s,...S.stats[s.id]})).sort((a,b)=>{const k=S.sort.k;const va=k==="n"?a.s.n:a[k],vb=k==="n"?b.s.n:b[k];return (va>vb?1:va<vb?-1:0)*S.sort.dir;});
+ const bar=(v,c)=>`<span class="bar"><i><b style="width:${(v*100).toFixed(1)}%;background:var(${c})"></b></i>${(v*100).toFixed(0)}%</span>`;
+ $("tbl").tBodies[0].innerHTML=rows.map(r=>`<tr tabindex="0" data-id="${r.s.id}" class="${r.s.id===S.sel?"sel":""}">
+  <td>${r.s.n}${r.s.ref?'<span class="ref">referência</span>':""}</td>
+  <td class="num">${bar(r.energy,"--sun")}</td><td class="num">${bar(r.lit,"--sun")}</td><td class="num">${bar(r.dte,"--earth")}</td><td class="num">${bar(r.both,"--both")}</td>
+  <td class="num" style="color:${r.maxDark>240?"var(--warn)":"inherit"}">${r.maxDark} h</td><td class="num">${r.maxWin} h</td><td class="num"><b>${r.score.toFixed(0)}</b></td></tr>`).join("");
+}
+$("tbl").addEventListener("click",e=>{const th=e.target.closest("th");if(th){const k=th.dataset.k;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:k==="n"||k==="maxDark"?1:-1};table();return;}
+ const tr=e.target.closest("tr[data-id]");if(tr){S.sel=tr.dataset.id;renderAll();}});
+$("tbl").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();e.target.click();}});
+
+/* ===== Orquestração ===== */
+function labels(){const m=+$("mask").value,H=+$("hgt").value;$("maskO").textContent=m.toFixed(1)+"°";$("hgtO").textContent=H+" m";$("dsnO").textContent=$("dsn").value+"°";}
+function renderTime(){drawMap();drawHorizon();drawTimeline();panel();}
+function renderAll(){renderTime();table();}
+function firstIdealMoment(){const ok=S.win[S.sel].ok;for(let i=0;i<=S.hours;i++)if(ok[i]===3){S.t=i;break;}$("scrub").value=S.t;}
+// Mudou o período: mostra na hora o cálculo local e pede os dados oficiais ao servidor.
+let reloadTimer=null;
+function reloadPeriod(){readPeriod();S.raw=localRaw();computeWindows();renderAll();
+ clearTimeout(reloadTimer);reloadTimer=setTimeout(loadRemote,400);}
+// Mudou só máscara/altura/DSN: recalcula as janelas com os dados que já temos.
+function recomputeWindows(){labels();computeWindows();renderAll();}
+function afterData(){computeWindows();renderAll();}
+["start","dur"].forEach(id=>$(id).addEventListener("change",reloadPeriod));
+["mask","hgt","dsn"].forEach(id=>$(id).addEventListener("input",recomputeWindows));
+$("scrub").addEventListener("input",()=>{S.t=+$("scrub").value;renderTime();});
+$("tSun").onclick=()=>{S.layer.sun=!S.layer.sun;$("tSun").setAttribute("aria-pressed",S.layer.sun);drawMap();};
+$("tEarth").onclick=()=>{S.layer.earth=!S.layer.earth;$("tEarth").setAttribute("aria-pressed",S.layer.earth);drawMap();};
+let timer=null;
+$("play").onclick=()=>{S.playing=!S.playing;$("play").setAttribute("aria-pressed",S.playing);$("play").textContent=S.playing?"❚❚ Pausar":"▶ Animar";
+ if(S.playing){timer=setInterval(()=>{S.t=(S.t+2)%(S.hours+1);$("scrub").value=S.t;renderTime();},70);}else clearInterval(timer);};
+new ResizeObserver(()=>renderTime()).observe(document.querySelector(".wrap"));
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",renderAll);
+new MutationObserver(renderAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+// Abre com o cálculo local (instantâneo) e troca pelos dados do servidor quando chegarem.
+$("start").value=new Date().toISOString().slice(0,10);
+labels();readPeriod();S.raw=localRaw();computeWindows();firstIdealMoment();setSource("local");renderAll();
+loadRemote();
+</script>
+
+</body>
+</html>

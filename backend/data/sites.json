@@ -1,0 +1,20 @@
+{
+  "_comment": "Coordenadas APROXIMADAS (centro estimado de cada região de ~15 km). Confira nos dados oficiais da NASA antes da apresentação. lon: graus leste (negativo = oeste). alt_km: altitude sobre a esfera de referência de 1737,4 km (0 = desconhecida).",
+  "sites": [
+    {"id": "cab", "name": "Pico perto de Cabeus B", "lat": -83.6, "lon": -49.0, "alt_km": 0, "desc": "Região mais distante do polo; voltada para o lado visível, boa visada da Terra."},
+    {"id": "haw", "name": "Haworth", "lat": -87.0, "lon": -4.0, "alt_km": 0, "desc": "Borda da cratera Haworth, vizinha de regiões permanentemente sombreadas."},
+    {"id": "mal", "name": "Maciço Malapert", "lat": -85.9, "lon": 3.0, "alt_km": 0, "desc": "Maciço alto voltado para a Terra; muito citado como ponto de retransmissão."},
+    {"id": "mmp", "name": "Platô Mons Mouton", "lat": -84.7, "lon": 38.0, "alt_km": 0, "desc": "Platô no topo de Mons Mouton, área alta e relativamente plana."},
+    {"id": "mmo", "name": "Mons Mouton", "lat": -84.3, "lon": 31.0, "alt_km": 0, "desc": "Encostas de Mons Mouton, uma das maiores elevações da região."},
+    {"id": "nb1", "name": "Borda Nobile 1", "lat": -85.6, "lon": 45.0, "alt_km": 0, "desc": "Borda da cratera Nobile, próxima a sombras permanentes."},
+    {"id": "nb2", "name": "Borda Nobile 2", "lat": -84.3, "lon": 60.0, "alt_km": 0, "desc": "Outro trecho da borda de Nobile, mais a leste."},
+    {"id": "dg2", "name": "Borda de Gerlache 2", "lat": -88.4, "lon": -64.0, "alt_km": 0, "desc": "A mais próxima do polo (~50 km), sobre um relevo ~3 km acima do entorno."},
+    {"id": "sla", "name": "Planície Slater", "lat": -87.6, "lon": 112.0, "alt_km": 0, "desc": "Planície do lado oposto à Terra: compare a comunicação com os demais."},
+    {"id": "shk", "name": "Borda de Shackleton", "lat": -89.7, "lon": -130.0, "alt_km": 0, "ref": true, "desc": "Referência clássica de iluminação quase contínua (não está na lista de 9)."}
+  ],
+  "dsn": [
+    {"id": "gdscc", "name": "Goldstone", "lat": 35.4267, "lon": -116.89, "alt_km": 1.0},
+    {"id": "mdscc", "name": "Madri", "lat": 40.4314, "lon": -4.2481, "alt_km": 0.83},
+    {"id": "cdscc", "name": "Canberra", "lat": -35.4014, "lon": 148.9817, "alt_km": 0.69}
+  ]
+}
