@@ -10,8 +10,9 @@ Ferramenta para comparar locais de pouso no polo sul da Lua: **quando há Sol** 
 - Comparar locais no mesmo período, numa tabela com energia solar, tempo de contato direto, noite mais longa e um índice.
 - Encontrar a melhor data de pouso: um mapa de calor mostra, para cada dia dos próximos meses, que fração da missão teria Sol e contato.
 - Fixar cenários (local + data) e compará-los lado a lado. Serve, por exemplo, para comparar o plano original com as alternativas depois de um atraso.
+- Ver as janelas de volta: quando decolar da Lua com Sol e contato direto antes da noite chegar.
 - Explicações em linguagem simples para educadores e para o público.
-- **Da Terra à Lua** (`terra-lua.html`): vista de cima da Terra e da órbita da Lua em anéis de distância, com as bases de lançamento do Kennedy, de Wallops, de Vandenberg e de Alcântara girando com a Terra. Simula a viagem (rápida, ~3 dias, ou econômica, ~5 dias), mostra o gráfico tempo × distância e compara as bases: empurrão da rotação da Terra, inclinação mínima e se a Lua está no céu.
+- **Da Terra à Lua** (`terra-lua.html`): vista de cima da Terra e da órbita da Lua em anéis de distância, com as bases de lançamento do Kennedy, de Wallops, de Vandenberg e de Alcântara girando com a Terra. Simula a ida e a volta (rápida, ~3 dias, ou econômica, ~5 dias), com o tempo na Lua e as janelas de volta que fazem a cápsula pousar no mar de dia, mostra o gráfico tempo × distância e compara as bases: empurrão da rotação da Terra, inclinação mínima e se a Lua está no céu.
 
 As posições do Sol e da Terra vêm da **JPL Horizons API** (efeméride DE441, a mesma usada pela JPL em planejamento de missões). Se a Horizons não responder, o app continua funcionando com um modelo analítico embutido e mostra qual fonte está em uso.
 

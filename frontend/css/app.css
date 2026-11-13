@@ -106,3 +106,12 @@ code{font:400 .82rem var(--f-mono);background:var(--panel-2);padding:1px 4px;bor
 .facts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
 .facts li{max-width:68ch}
 td.act{display:flex;gap:6px}
+
+/* ===== Janelas de volta ===== */
+.ret{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.ret select{font:500 .8rem var(--f-mono);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:3px 6px}
+.retlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.retlist li{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--fg);border-radius:3px;padding:8px 10px}
+.retlist .when{font:500 .95rem var(--f-mono);font-variant-numeric:tabular-nums}
+.retlist .det{font-size:.82rem;color:var(--muted)}
+.retlist button{margin-left:auto}

@@ -58,6 +58,26 @@ function sunRA(ms) {
   const lam = L0 + 1.914602 * sd(M) + 0.019993 * sd(2 * M), eps = 23.4393;
   return norm(Math.atan2(cd(eps) * sd(lam), cd(lam)) / D2R);
 }
+/* Zonas de pouso na volta (pontos aproximados, ilustrativos). A Apollo e a Artemis I
+   pousaram no Pacífico; a regra da Apollo exigia luz do dia para o resgate. */
+const ZONES = [
+  { id: "pac", name: "Pacífico, perto da Baixa Califórnia", note: "região do pouso da Artemis I (2022)", lat: 29.0, lon: -118.3 },
+  { id: "fl", name: "Atlântico, costa da Flórida", note: "ponto ilustrativo", lat: 29.0, lon: -80.0 },
+  { id: "br", name: "Atlântico, perto de Alcântara", note: "ponto hipotético", lat: -1.5, lon: -43.5 },
+];
+const ENTRY_ALT = 122;   // km: altitude da interface de reentrada
+const SUN_MIN = 10;      // graus: Sol mínimo na zona de pouso para o resgate de dia
+function sunPos(ms) {
+  const T = (ms / 864e5 + 2440587.5 - 2451545) / 36525;
+  const L0 = 280.46646 + 36000.76983 * T, M = 357.52911 + 35999.05029 * T;
+  const lam = L0 + 1.914602 * sd(M) + 0.019993 * sd(2 * M), eps = 23.4393;
+  return { ra: norm(Math.atan2(cd(eps) * sd(lam), cd(lam)) / D2R), dec: Math.asin(sd(eps) * sd(lam)) / D2R };
+}
+/** Elevação do Sol (graus) num ponto da Terra. */
+function sunElevEarth(ms, lat, lon) {
+  const p = sunPos(ms), gmst = norm(280.46061837 + 360.98564736629 * (ms / 864e5 + 2440587.5 - 2451545));
+  return Math.asin(sd(lat) * sd(p.dec) + cd(lat) * cd(p.dec) * cd(gmst + lon - p.ra)) / D2R;
+}
 /** Lua vista de uma base na Terra: elevação (graus) e distância (km). */
 function moonFromSite(e, s) {
   const th = e.gmst + s.lon, ux = cd(s.lat) * cd(th), uy = cd(s.lat) * sd(th), uz = sd(s.lat);
@@ -116,6 +136,39 @@ function compute() {
   tr.raArr = eArr.ra; tr.distArr = eArr.earth.dist;
   tr.omega = eArr.ra - tr.nuArr / D2R;  // direção do perigeu na vista de cima
   S.tr = tr;
+  computeReturn(kind);
+}
+/* ===== Volta =====
+ * A volta é a mesma elipse percorrida ao contrário: sai da distância da Lua e desce
+ * até a interface de reentrada. Uma partida é boa quando a cápsula chega à zona de
+ * pouso com o Sol a pelo menos SUN_MIN graus. As janelas se repetem a cada dia. */
+function computeReturn(kind) {
+  const zone = ZONES.find(z => z.id === $("zone").value), rpE = RE + ENTRY_ALT;
+  const dep0 = S.t0 + S.tr.tof * 1000 + +$("stay").value * 864e5, wins = [];
+  let cur = null;
+  for (let m = 0; m <= 96 * 60; m += 30) {
+    const t = dep0 + m * 6e4, trR = transfer(rpE, ephem(t).earth.dist, kind), home = t + trR.tof * 1000;
+    const el = sunElevEarth(home, zone.lat, zone.lon);
+    if (el >= SUN_MIN) { if (!cur) cur = { a: t, homeA: home, elMax: el }; cur.b = t; cur.homeB = home; cur.elMax = Math.max(cur.elMax, el); }
+    else if (cur) { wins.push(cur); cur = null; }
+  }
+  if (cur) { cur.open = true; wins.push(cur); }
+  const dep = S.depChoice != null && S.depChoice >= dep0 && S.depChoice <= dep0 + 96 * 36e5 ? S.depChoice : wins.length ? wins[0].a : dep0;
+  const eDep = ephem(dep), trR = transfer(rpE, eDep.earth.dist, kind);
+  trR.distDep = eDep.earth.dist; trR.omega = eDep.ra - (2 * Math.PI - trR.nuArr) / D2R;
+  Object.assign(S, { zone, dep0, wins, dep, trR, home: dep + trR.tof * 1000 });
+  S.homeSunEl = sunElevEarth(S.home, zone.lat, zone.lon);
+}
+/** Posição na volta, s segundos após a partida da Lua (ângulo na vista de cima e distância). */
+function returnAt(sSec) {
+  const tr = S.trR; if (sSec < -1 || sSec > tr.tof + 1) return null;
+  sSec = Math.min(tr.tof, Math.max(0, sSec));  // tolera arredondamento nas pontas
+  const c = craftAt(tr, tr.tof - sSec);
+  return { r: c.r, ang: tr.omega + (2 * Math.PI - c.nu) / D2R };
+}
+function phase(tauH) {
+  const ms = S.t0 + tauH * 36e5;
+  return ms < S.t0 + S.tr.tof * 1000 ? "ida" : ms < S.dep ? "lua" : ms < S.home ? "volta" : "terra";
 }
 
 /* ===== Vista de cima ===== */
@@ -168,6 +221,10 @@ function drawOrbit() {
     ctx.beginPath(); for (let j = 0; j <= 60; j++) { const [x, y] = pathPt(Enow * j / 60); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
   }
   ctx.lineWidth = 1;
+  // caminho da volta
+  ctx.strokeStyle = rgba(col("--craft"), 0.55); ctx.lineWidth = 2; ctx.setLineDash([2, 5]); ctx.beginPath();
+  for (let j = 0; j <= 120; j++) { const q = returnAt(S.trR.tof * j / 120), [x, y] = P(q.ang, q.r); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
   // Lua na chegada (fantasma) e Lua agora
   const [gx, gy] = P(tr.raArr, tr.distArr);
   ctx.strokeStyle = col("--lit"); ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.arc(gx, gy, 9, 0, 7); ctx.stroke(); ctx.setLineDash([]);
@@ -178,9 +235,13 @@ function drawOrbit() {
   ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7); ctx.fillStyle = col("--lit"); ctx.fill(); ctx.strokeStyle = col("--bg"); ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
   ctx.fillStyle = col("--fg"); ctx.font = "600 12px " + col("--f-body"); ctx.textAlign = mx > cx ? "left" : "right";
   ctx.fillText("Lua", mx + (mx > cx ? 13 : -13), my);
-  if (cs) {
-    const [nx, ny] = P(tr.omega + cs.nu / D2R, cs.r);
-    ctx.beginPath(); ctx.arc(nx, ny, 5.5, 0, 7); ctx.fillStyle = col("--craft"); ctx.fill(); ctx.strokeStyle = col("--bg"); ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+  const ph = phase(S.tau);
+  let craftPt = null;
+  if (ph === "ida" && cs) craftPt = P(tr.omega + cs.nu / D2R, cs.r);
+  else if (ph === "lua") craftPt = [mx + 7, my - 7];
+  else if (ph === "volta") { const q = returnAt((ms - S.dep) / 1000); craftPt = P(q.ang, q.r); }
+  if (craftPt) {
+    ctx.beginPath(); ctx.arc(craftPt[0], craftPt[1], 5.5, 0, 7); ctx.fillStyle = col("--craft"); ctx.fill(); ctx.strokeStyle = col("--bg"); ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
   }
   // Terra (ampliada) com lado iluminado e bases girando com ela
   const re = Math.max(16, R * 0.075);
@@ -205,7 +266,7 @@ function rgba(hex, a) {
 
 /* ===== Gráfico tempo × distância ===== */
 function drawChart() {
-  const cv = $("dist"), { ctx, w, h } = fit(cv), pad = { l: 78, r: 12, t: 14, b: 26 }, N = SPAN_H + 1, tr = S.tr;
+  const cv = $("dist"), { ctx, w, h } = fit(cv), pad = { l: 78, r: 12, t: 14, b: 44 }, N = SPAN_H + 1, tr = S.tr;
   const X = hr => pad.l + hr / SPAN_H * (w - pad.l - pad.r), Y = v => pad.t + (1 - v / 420000) * (h - pad.t - pad.b);
   ctx.clearRect(0, 0, w, h);
   ctx.font = "10px " + col("--f-mono"); ctx.strokeStyle = col("--grid"); ctx.fillStyle = col("--muted");
@@ -237,8 +298,23 @@ function drawChart() {
   ctx.beginPath(); ctx.arc(X(tofH), Y(tr.distArr), 5, 0, 7); ctx.fillStyle = col("--craft"); ctx.fill();
   ctx.fillStyle = col("--fg"); ctx.font = "600 11px " + col("--f-body"); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
   ctx.fillText(`chegada em ${fmtDur(tofH)}`, X(tofH) + 8, Y(tr.distArr) - 8);
+  // na Lua (acompanha a distância da Lua) e volta
+  const H = ms => (ms - S.t0) / 36e5, depH = H(S.dep), homeH = H(S.home);
+  ctx.strokeStyle = col("--craft"); ctx.lineWidth = 2.5; ctx.setLineDash([2, 3]); ctx.beginPath();
+  for (let hh = tofH; hh <= Math.min(depH, SPAN_H); hh += 1) { const x = X(hh), y = Y(S.moon.dist[Math.min(SPAN_H, Math.round(hh))]); hh === tofH ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  ctx.stroke(); ctx.setLineDash([]); ctx.beginPath();
+  for (let j = 0; j <= 200; j++) { const sec = S.trR.tof * j / 200, hh = depH + sec / 3600; if (hh > SPAN_H) break; const x = X(hh), y = Y(returnAt(sec).r); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = col("--fg"); ctx.font = "600 11px " + col("--f-body"); ctx.textBaseline = "bottom";
+  if (depH <= SPAN_H) { ctx.beginPath(); ctx.arc(X(depH), Y(S.trR.distDep), 5, 0, 7); ctx.fillStyle = col("--craft"); ctx.fill(); ctx.fillStyle = col("--fg"); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("partida", X(depH), Y(S.trR.distDep) + 9); ctx.textBaseline = "bottom"; }
+  if (homeH <= SPAN_H) { ctx.beginPath(); ctx.arc(X(homeH), Y(0), 5, 0, 7); ctx.fillStyle = col("--craft"); ctx.fill(); ctx.fillStyle = col("--fg"); ctx.textAlign = homeH > SPAN_H - 48 ? "right" : "left"; ctx.fillText("pouso na Terra", X(homeH) + (homeH > SPAN_H - 48 ? -8 : 8), Y(0) - 6); }
+  // faixa das janelas de volta
+  const by = h - 16; ctx.fillStyle = col("--panel-2"); ctx.fillRect(pad.l, by, w - pad.l - pad.r, 8);
+  ctx.fillStyle = col("--craft");
+  for (const wv of S.wins) { const a = H(wv.a), b = Math.min(SPAN_H, H(wv.b) + 0.5); if (a < SPAN_H) ctx.fillRect(X(a), by, Math.max(2, X(b) - X(a)), 8); }
+  ctx.fillStyle = col("--muted"); ctx.font = "10px " + col("--f-mono"); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText("Volta", pad.l - 6, by + 4);
   // cursor
-  const cxp = X(S.tau); ctx.strokeStyle = col("--fg"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxp, pad.t); ctx.lineTo(cxp, h - pad.b); ctx.stroke(); ctx.lineWidth = 1;
+  const cxp = X(S.tau); ctx.strokeStyle = col("--fg"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxp, pad.t); ctx.lineTo(cxp, h - 8); ctx.stroke(); ctx.lineWidth = 1;
   cv._geo = { pad, w };
 }
 let dragging = false;
@@ -262,9 +338,12 @@ function panel() {
   $("rDistD").textContent = `a luz leva ${num(d / C_KMS, 2)} s · ${pos < 0.25 ? "perto do perigeu" : pos > 0.75 ? "perto do apogeu" : "entre perigeu e apogeu"}`;
   $("rSite").textContent = ms_site.el > 0 ? `no céu, ${num(ms_site.el)}°` : `abaixo, ${num(ms_site.el)}°`;
   $("rSiteD").textContent = `a ${km(ms_site.dist)} km da base`;
-  const c = craftAt(tr, S.tau * 3600), tofH = tr.tof / 3600;
-  if (c) { $("rCraft").textContent = `${km(c.r)} km`; $("rCraftD").textContent = `${Math.round(100 * (c.r - tr.rp) / (tr.distArr - tr.rp))}% do caminho até a distância da Lua`; }
-  else { $("rCraft").textContent = "chegou"; $("rCraftD").textContent = "fase de órbita lunar fora da simulação"; }
+  const c = craftAt(tr, S.tau * 3600), tofH = tr.tof / 3600, ph = phase(S.tau);
+  if (ph === "ida") { $("rCraft").textContent = `${km(c.r)} km`; $("rCraftD").textContent = `indo · ${Math.round(100 * (c.r - tr.rp) / (tr.distArr - tr.rp))}% do caminho até a distância da Lua`; }
+  else if (ph === "lua") { $("rCraft").textContent = "na Lua"; $("rCraftD").textContent = `parte em ${fmtDur((S.dep - ms) / 36e5)}`; }
+  else if (ph === "volta") { const q = returnAt((ms - S.dep) / 1000); $("rCraft").textContent = `${km(q.r)} km`; $("rCraftD").textContent = `voltando · pouso em ${fmtDur((S.home - ms) / 36e5)}`; }
+  else { $("rCraft").textContent = "na Terra"; $("rCraftD").textContent = `pousou em ${fmt.format(S.home)} UTC`; }
+  returnPanel();
   $("rArr").textContent = `em ${fmtDur(tofH)}`;
   $("rArrD").textContent = `${fmt.format(S.t0 + tr.tof * 1000)} UTC · Lua a ${km(tr.distArr)} km`;
   $("rDv").textContent = `${num(tr.dv, 2)} km/s`;
@@ -273,7 +352,22 @@ function panel() {
   $("rRotD").textContent = s.id === "ksc" ? "referência para comparar as bases" : `${v >= vK ? "+" : "−"}${Math.round(Math.abs(v - vK))} m/s em relação ao Kennedy`;
   const traj = $("traj").value === "fast" ? "rápida" : "econômica";
   $("explain").textContent = `${s.desc} Neste momento a Lua está a ${km(d)} km da Terra e ${ms_site.el > 0 ? `aparece no céu da base, a ${num(ms_site.el)}° de altura` : "está abaixo do horizonte da base"}. `
-    + `Uma nave lançada daqui na trajetória ${traj} chega em ${fmtDur(tofH)}, quando a Lua estará a ${km(tr.distArr)} km.`;
+    + `Uma nave lançada daqui na trajetória ${traj} chega em ${fmtDur(tofH)}, quando a Lua estará a ${km(tr.distArr)} km. `
+    + `Depois de ${num(+$("stay").value, (+$("stay").value) % 1 ? 1 : 0)} dias na Lua, ${S.wins.length ? `a volta parte em ${fmt.format(S.dep)} UTC e pousa de dia ${zoneTxt()}` : `não há partida que pouse de dia ${zoneTxt()} nos 4 dias seguintes`}.`;
+}
+const zoneTxt = () => `no ${S.zone.name}`;
+function returnPanel() {
+  const missionH = (S.home - S.t0) / 36e5;
+  $("rRet").textContent = S.wins.length ? fmt.format(S.dep) : "nenhuma";
+  $("rRetD").textContent = S.wins.length ? `UTC · ${S.wins.length} janela${S.wins.length > 1 ? "s" : ""} nos 4 dias após a estadia` : `nenhum pouso de dia nos 4 dias após a estadia; partida em ${fmt.format(S.dep)} UTC`;
+  $("rHome").textContent = `${fmt.format(S.home)}`;
+  $("rHomeD").textContent = `UTC · Sol a ${num(S.homeSunEl)}° na zona de pouso · missão de ${fmtDur(missionH)}`;
+  $("retList").innerHTML = S.wins.slice(0, 4).map(wv => {
+    const chosen = S.dep >= wv.a && S.dep <= wv.b;
+    return `<li class="${chosen ? "chosen" : ""}"><span class="when">${fmt.format(wv.a)} → ${fmt.format(wv.b + 18e5)}${wv.open ? "+" : ""}</span>`
+      + `<span class="det">pouso na Terra entre ${fmt.format(wv.homeA)} e ${fmt.format(wv.homeB)} UTC · Sol até ${num(wv.elMax, 0)}°</span>`
+      + `<button class="btn-sm" type="button" data-dep="${wv.a}"${chosen ? " aria-pressed=\"true\"" : ""}>${chosen ? "escolhida" : "usar esta"}</button></li>`;
+  }).join("") || `<li><span class="det">Nenhuma partida nos 4 dias após a estadia pousa de dia nessa zona. Mude o tempo na Lua ou a zona de pouso.</span></li>`;
 }
 function table() {
   const ms = S.t0 + S.tau * 36e5, e = ephem(ms), vK = V_EQ * cd(SITES[0].lat);
@@ -303,8 +397,15 @@ function recompute() { $("parkO").textContent = `${$("park").value} km`; compute
 
 $("site").innerHTML = SITES.map(s => `<option value="${s.id}">${s.name} (${s.org})</option>`).join("");
 $("site").addEventListener("change", () => { S.site = $("site").value; renderAll(); });
-$("launch").addEventListener("change", () => { S.tau = 0; $("scrub").value = 0; recompute(); });
-["traj", "park"].forEach(id => $(id).addEventListener("input", recompute));
+$("launch").addEventListener("change", () => { S.tau = 0; $("scrub").value = 0; S.depChoice = null; recompute(); });
+["traj", "park"].forEach(id => $(id).addEventListener("input", () => { S.depChoice = null; recompute(); }));
+$("zone").innerHTML = ZONES.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
+["stay", "zone"].forEach(id => $(id).addEventListener("change", () => { S.depChoice = null; recompute(); }));
+$("retList").addEventListener("click", e => {
+  const b = e.target.closest("button[data-dep]"); if (!b) return;
+  S.depChoice = +b.dataset.dep; recompute();
+  S.tau = Math.max(0, (S.dep - S.t0) / 36e5); $("scrub").value = S.tau; renderTime();
+});
 $("scrub").addEventListener("input", () => { S.tau = +$("scrub").value; renderTime(); });
 let timer = null;
 $("play").onclick = () => {

@@ -26,6 +26,8 @@
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .explain{margin:0;font-size:.95rem;line-height:1.55;max-width:65ch;border-left:3px solid var(--line);padding:2px 0 2px 12px}
 td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
+.retlist li{border-left-color:var(--craft)}
+.retlist li.chosen{background:var(--panel);border-color:var(--craft)}
 </style>
 </head>
 <body>
@@ -49,6 +51,8 @@ td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
         <option value="hohmann" selected>Econômica, ~5 dias (transferência de Hohmann)</option>
       </select></label>
     <label class="ctl"><span class="lbl">Altitude da órbita de espera <output id="parkO"></output></span><input type="range" id="park" min="160" max="400" step="5" value="185"></label>
+    <label class="ctl"><span class="lbl">Tempo na Lua (dias)</span><input type="number" id="stay" min="0.5" max="14" step="0.5" value="6.5"></label>
+    <label class="ctl"><span class="lbl">Pouso na volta</span><select id="zone"></select></label>
   </div>
 </section>
 
@@ -61,7 +65,7 @@ td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
     <canvas id="orbit" aria-label="Vista de cima: anéis de distância, órbita da Lua, nave e bases de lançamento"></canvas>
     <div class="legend">
       <span><span class="sw" style="background:var(--lit)"></span>Lua</span>
-      <span><span class="sw" style="background:var(--craft)"></span>Nave</span>
+      <span><span class="sw" style="background:var(--craft)"></span>Nave (tracejado: ida · pontilhado: volta)</span>
       <span><span class="sw" style="background:var(--sun)"></span>Direção do Sol</span>
       <span><span class="sw" style="background:var(--earth)"></span>Base selecionada</span>
       <span>Anéis a cada 100 mil km · tracejado: perigeu e apogeu do mês · a Terra está ampliada</span>
@@ -78,6 +82,8 @@ td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
       <div class="ro craft"><span class="lbl">Chegada à Lua</span><span class="v" id="rArr">—</span><span class="d" id="rArrD"></span></div>
       <div class="ro"><span class="lbl">Impulso da injeção translunar</span><span class="v" id="rDv">—</span><span class="d">a partir da órbita de espera</span></div>
       <div class="ro sun"><span class="lbl">Empurrão da rotação da Terra</span><span class="v" id="rRot">—</span><span class="d" id="rRotD"></span></div>
+      <div class="ro craft"><span class="lbl">Partida da Lua (janela de volta)</span><span class="v" id="rRet">—</span><span class="d" id="rRetD"></span></div>
+      <div class="ro craft"><span class="lbl">Pouso na Terra</span><span class="v" id="rHome">—</span><span class="d" id="rHomeD"></span></div>
     </div>
   </section>
 </div>
@@ -91,9 +97,16 @@ td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
   <input type="range" id="scrub" min="0" max="720" step="0.5" value="0" aria-label="Tempo desde o lançamento">
   <div class="legend">
     <span><span class="sw" style="background:var(--lit)"></span>Distância Terra–Lua (varia entre perigeu e apogeu)</span>
-    <span><span class="sw" style="background:var(--craft)"></span>Distância da nave até a Terra</span>
+    <span><span class="sw" style="background:var(--craft)"></span>Distância da nave até a Terra: ida, estadia na Lua (pontilhado) e volta</span>
+    <span>Faixa “Volta”: partidas que pousam de dia</span>
     <span>Arraste no gráfico ou na barra para mudar o tempo</span>
   </div>
+</section>
+
+<section class="card" aria-label="Janelas de volta">
+  <div class="tlhead"><h2>Janelas de volta</h2><span class="lbl">nos 4 dias após o tempo na Lua · clique para escolher</span></div>
+  <p class="explain">A cápsula precisa pousar no mar com luz do dia, para as equipes de resgate a encontrarem. A Terra gira uma vez por dia, então a zona de pouso passa pelo dia e pela noite: a cada dia abre uma janela de algumas horas em que a partida da Lua faz a cápsula chegar com o Sol acima de 10° na zona escolhida.</p>
+  <ol class="retlist" id="retList"></ol>
 </section>
 
 <section class="card" aria-label="Comparar bases">
@@ -118,6 +131,7 @@ td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
     <li>Posição da Lua pelo mesmo modelo analítico do Janela Polar (erro de poucas centenas de km na distância). Para números oficiais, use a JPL Horizons.</li>
     <li>A trajetória é uma elipse de Kepler só com a gravidade da Terra, desenhada no plano do equador, saindo da órbita de espera no instante do lançamento. A gravidade da Lua e a fase de inserção em órbita lunar ficam de fora.</li>
     <li>Vista de cima do polo norte celeste: o ângulo é a ascensão reta, e a distância ao centro é a distância real.</li>
+    <li>A volta é a mesma elipse percorrida ao contrário, da distância da Lua até 122 km de altitude (início da reentrada). As zonas de pouso são pontos aproximados; a do Pacífico fica perto do pouso da Artemis I.</li>
   </ul></div>
 </section>
 </div>

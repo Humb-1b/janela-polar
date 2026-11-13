@@ -75,6 +75,15 @@
       <div class="ro"><span class="lbl">Próxima janela Sol + Terra</span><span class="v" id="rNext">—</span><span class="d" id="rNextD"></span></div>
       <div class="ro"><span class="lbl">Noite mais longa no período</span><span class="v" id="rDark">—</span><span class="d">horas seguidas sem Sol</span></div>
     </div>
+    <div class="ret">
+      <div class="row" style="justify-content:space-between">
+        <span class="lbl">Janelas de volta · decolar com Sol e contato direto</span>
+        <label class="row lbl" for="retMin">por pelo menos
+          <select id="retMin"><option value="4">4 h</option><option value="8" selected>8 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
+      </div>
+      <ol class="retlist" id="retList"></ol>
+      <p class="note" id="retNote"></p>
+    </div>
     <div class="ctl"><span class="lbl">Estações DSN com a Lua acima da elevação mínima</span>
       <div class="chips" id="dsnChips"></div></div>
     <div class="ctl"><span class="lbl">Horizonte local · trajetórias no período</span>
@@ -98,6 +107,7 @@
     <span><span class="sw" style="background:var(--sun)"></span>Elevação do Sol (centro do disco)</span>
     <span><span class="sw" style="background:var(--earth)"></span>Elevação da Terra</span>
     <span><span class="sw" style="background:var(--both)"></span>Janela ideal: Sol + contato direto com a Terra</span>
+    <span><span class="sw" style="background:var(--fg)"></span>Janela de volta: ideal pela duração mínima escolhida</span>
     <span>Linha tracejada: horizonte efetivo na direção do Sol</span>
   </div>
 </section>

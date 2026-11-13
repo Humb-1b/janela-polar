@@ -400,7 +400,7 @@ function drawHorizon() {
 
 /* ===== Linha do tempo ===== */
 function drawTimeline() {
-  const cv = $("timeline"), { ctx, w, h } = fit(cv), D = site(S.sel), N = S.hours + 1, pad = { l: 38, r: 10, t: 10, b: 74 };
+  const cv = $("timeline"), { ctx, w, h } = fit(cv), D = site(S.sel), N = S.hours + 1, pad = { l: 38, r: 10, t: 10, b: 88 };
   let lo = -6, hi = 4;
   for (let i = 0; i < N; i++) if (!isNaN(D.se[i])) { hi = Math.max(hi, D.se[i], D.ee[i]); lo = Math.min(lo, D.se[i], D.ee[i], D.hs[i] - 2); }
   hi = Math.ceil(hi + 1); lo = Math.max(-90, Math.floor(lo - 1));
@@ -410,19 +410,20 @@ function drawTimeline() {
   const span = hi - lo, st = span > 120 ? 30 : span > 60 ? 20 : span > 16 ? 4 : 2;
   for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) { ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(w - pad.r, Y(v)); ctx.stroke(); ctx.fillText(v + "°", pad.l - 5, Y(v)); }
   const days = S.hours / 24, every = days > 45 ? 10 : days > 20 ? 5 : 2; ctx.textAlign = "center"; ctx.textBaseline = "top";
-  for (let d = 0; d <= days; d += every) { const x = X(d * 24); ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b + 50); ctx.stroke(); ctx.fillText(fmtD.format(S.start + d * 864e5), x, h - 18); }
+  for (let d = 0; d <= days; d += every) { const x = X(d * 24); ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b + 64); ctx.stroke(); ctx.fillText(fmtD.format(S.start + d * 864e5), x, h - 18); }
   ctx.setLineDash([4, 3]); ctx.strokeStyle = col("--fg"); ctx.beginPath(); for (let i = 0; i < N; i++) { const x = X(i), y = Y(D.hs[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.setLineDash([]);
   const line = (arr, c) => { ctx.beginPath(); for (let i = 0; i < N; i++) { const x = X(i), y = Y(arr[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1; };
   line(D.ee, col("--earth")); line(D.se, col("--sun"));
-  const rows = [["Sol", v => v & 1, col("--sun")], ["DTE", v => v & 2, col("--earth")], ["Ambos", v => v === 3, col("--both")]];
+  const rf = S.ret ? S.ret.flags : new Uint8Array(N);
+  const rows = [["Sol", i => D.ok[i] & 1, col("--sun")], ["DTE", i => D.ok[i] & 2, col("--earth")], ["Ambos", i => D.ok[i] === 3, col("--both")], ["Volta", i => rf[i], col("--fg")]];
   const cw = (w - pad.l - pad.r) / (N - 1);
   rows.forEach(([lab, f, c], r) => {
     const y = h - pad.b + 8 + r * 14; ctx.fillStyle = col("--panel-2"); ctx.fillRect(pad.l, y, w - pad.l - pad.r, 10); ctx.fillStyle = c;
     let s0 = -1;
-    for (let i = 0; i <= N; i++) { const on = i < N && f(D.ok[i]); if (on && s0 < 0) s0 = i; if (!on && s0 >= 0) { ctx.fillRect(X(s0), y, Math.max(1, X(i - 1) - X(s0) + cw), 10); s0 = -1; } }
+    for (let i = 0; i <= N; i++) { const on = i < N && f(i); if (on && s0 < 0) s0 = i; if (!on && s0 >= 0) { ctx.fillRect(X(s0), y, Math.max(1, X(i - 1) - X(s0) + cw), 10); s0 = -1; } }
     ctx.fillStyle = col("--muted"); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(lab, pad.l - 5, y + 5);
   });
-  const cx = X(S.t); ctx.strokeStyle = col("--fg"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, pad.t); ctx.lineTo(cx, h - pad.b + 50); ctx.stroke(); ctx.lineWidth = 1;
+  const cx = X(S.t); ctx.strokeStyle = col("--fg"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, pad.t); ctx.lineTo(cx, h - pad.b + 64); ctx.stroke(); ctx.lineWidth = 1;
   [[D.se[S.t], col("--sun")], [D.ee[S.t], col("--earth")]].forEach(([v, c]) => { ctx.beginPath(); ctx.arc(cx, Y(v), 4.5, 0, 7); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = col("--panel"); ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1; });
   cv._geo = { pad, w, N };
 }
@@ -434,6 +435,44 @@ function tlSet(ev) {
 $("timeline").addEventListener("pointerdown", e => { dragging = true; $("timeline").setPointerCapture(e.pointerId); tlSet(e); });
 $("timeline").addEventListener("pointermove", e => { if (dragging) tlSet(e); });
 $("timeline").addEventListener("pointerup", () => { dragging = false; });
+
+/* ===== Janelas de volta =====
+ * Para decolar da Lua e voltar, a equipe quer Sol (energia, visibilidade) e contato
+ * direto com a Terra durante a subida e o encontro em órbita. Uma janela de volta é
+ * um trecho de "janela ideal" com pelo menos a duração mínima escolhida. */
+function returnWindows(D) {
+  const N = D.ok.length, minH = +$("retMin").value, flags = new Uint8Array(N), runs = [];
+  let a = -1;
+  for (let i = 0; i <= N; i++) {
+    const on = i < N && D.ok[i] === 3;
+    if (on && a < 0) a = i;
+    if (!on && a >= 0) { if (i - a >= minH) { runs.push({ a, b: i, open: i === N }); flags.fill(1, a, i); } a = -1; }
+  }
+  return { flags, runs, minH };
+}
+function returnPanel(D, t, N, sunEv) {
+  const R = S.ret, next = R.runs.filter(r => r.b > t).slice(0, 3);
+  const day = 864e5;
+  $("retList").innerHTML = next.map(r => {
+    const inside = r.a <= t, startMs = S.start + Math.max(r.a, t) * 36e5, left = r.b - Math.max(r.a, t);
+    const when = inside ? "agora" : `${fmt.format(S.start + r.a * 36e5)} UTC`;
+    const dur = inside ? `restam ${fmtDur(left)}${r.open ? "+" : ""}` : `${fmtDur(r.b - r.a)}${r.open ? "+" : ""} de janela`;
+    return `<li><span class="when">${when}</span><span class="det">${dur} · chegada à Terra entre ${fmtD.format(startMs + 3 * day)} e ${fmtD.format(startMs + 5 * day)}</span>`
+      + `<button class="btn-sm" data-t="${Math.max(r.a, t)}" type="button">ver na linha do tempo</button></li>`;
+  }).join("");
+  let note;
+  if (!next.length) note = `Nenhuma janela de volta de ${R.minH} h até o fim do período. Diminua a duração mínima ou aumente o período.`;
+  else if (sunEv.cur && sunEv.dt != null) {
+    const sunset = t + sunEv.dt, before = R.runs.filter(r => r.b > t && r.a < sunset);
+    note = before.length
+      ? `O Sol se põe em ${fmtDur(sunEv.dt)}. A última janela antes da noite termina em ${fmt.format(S.start + Math.min(before[before.length - 1].b, sunset) * 36e5)} UTC: depois disso, ficar significa esperar o fim da escuridão.`
+      : `O Sol se põe em ${fmtDur(sunEv.dt)} e não há janela de volta completa antes disso.`;
+  } else if (!sunEv.cur) note = "Está escuro agora: a próxima janela só abre depois que o Sol voltar.";
+  else note = "O Sol não se põe até o fim do período.";
+  $("retNote").innerHTML = `${note} A viagem de volta leva de ~3 dias (rápida) a ~5 dias (econômica): veja em <a href="terra-lua.html" style="color:var(--earth)">Da Terra à Lua</a>.`;
+}
+$("retList").addEventListener("click", e => { const b = e.target.closest("button[data-t]"); if (!b) return; S.t = +b.dataset.t; $("scrub").value = S.t; renderTime(); });
+$("retMin").addEventListener("change", () => renderTime());
 
 /* ===== Painel do local ===== */
 function nextChange(flag, t, N) {
@@ -486,6 +525,7 @@ function panel() {
   if (nx < 0) { $("rNext").textContent = "nenhuma"; $("rNextD").textContent = "no restante do período"; }
   else { $("rNext").textContent = nx === t ? "agora" : `em ${fmtDur(nx - t)}`; $("rNextD").textContent = `${fmt.format(S.start + nx * 36e5)} · dura ${fmtDur(len)}${nx + len >= N ? "+" : ""}`; }
   $("rDark").textContent = fmtDur(st.maxDark);
+  returnPanel(D, t, N, sunEv);
   $("dsnChips").innerHTML = DSN.map((d, k) => `<span class="chip ${S.dsnMask[t] >> k & 1 ? "on" : ""}">${esc(d.name)}</span>`).join("");
   $("sNote").textContent = (s.desc || "") + (D.mask ? " Horizonte com relevo real (máscara de terreno)." : "") + (s.approx ? " Coordenada aproximada." : "");
   $("nowLbl").textContent = fmt.format(S.start + t * 36e5) + " UTC";
@@ -682,7 +722,7 @@ function schedulePlanner() { clearTimeout(planTimer); planTimer = setTimeout(run
 function labels() {
   $("maskO").textContent = num(+$("mask").value) + "°"; $("hgtO").textContent = $("hgt").value + " m"; $("dsnO").textContent = $("dsn").value + "°";
 }
-function renderTime() { drawMap(); drawHorizon(); drawTimeline(); panel(); }
+function renderTime() { S.ret = returnWindows(site(S.sel)); drawMap(); drawHorizon(); drawTimeline(); panel(); }
 function renderAll() { renderTime(); table(); }
 function firstIdealMoment() {
   const w = S.win[S.sel]; if (!w) return;
