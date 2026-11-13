@@ -69,6 +69,8 @@ janela-polar/
 │   ├── js/app.js             interface: mapas, painel, linha do tempo, planejador, cenários
 │   ├── terra-lua.html        página Da Terra à Lua (bases de lançamento e viagem)
 │   ├── js/terra-lua.js       simulação dessa página (usa js/engine.js)
+│   ├── dados-nasa.html       recursos da NASA usados no app e links para a Horizons por local
+│   ├── js/dados-nasa.js      tabela de locais e links dessa página
 │   ├── tests/engine.test.mjs testa o motor JS contra os valores do Python (node --test)
 │   ├── config.js             endereço do backend quando hospedado separado
 │   └── data/                 pacotes pré-calculados (gerados por scripts/precompute.py)

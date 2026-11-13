@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dados da NASA · Janela Polar</title>
+<meta name="description" content="Os recursos da NASA usados pelo Janela Polar e atalhos para abrir cada local na JPL Horizons, no QuickMap e no Moon Trek.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23b8b2a6%22/%3E%3Cpath d=%22M8 1a7 7 0 0 0 0 14z%22 fill=%22%2307090c%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>
+/* Estilos só desta página; cores e tipografia vêm de css/app.css */
+.nav{display:flex;flex-wrap:wrap;gap:6px 16px;font:500 .85rem var(--f-mono)}
+.nav a,.res a,.more a,td a{color:var(--earth)}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.res .card h3{font:700 1.4rem/1.1 var(--f-display);margin:0;letter-spacing:.02em}
+.res dl{margin:0;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
+.res dt{font:500 .7rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.res dd{margin:0;max-width:62ch}
+.res .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.pill{font:500 .72rem var(--f-mono);padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);align-self:flex-start}
+.pill.direct{color:var(--both);border-color:var(--both)}
+.coord{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.copy{font:500 .75rem var(--f-mono);padding:3px 8px;margin-left:6px}
+.facts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
+.facts li{max-width:70ch}
+.disclaimer{font-size:.85rem;color:var(--muted);max-width:80ch;margin:0}
+.lede{margin:0;max-width:70ch;font-size:.95rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <nav class="nav"><a href="index.html">← Janela Polar: locais de pouso</a><a href="terra-lua.html">Da Terra à Lua</a></nav>
+    <h1>Dados da <span>NASA</span></h1>
+    <p class="sub">Os recursos indicados pela NASA para este desafio, o que cada um oferece e como o Janela Polar usa cada um deles.</p>
+  </div>
+</header>
+
+<section class="res" aria-label="Recursos da NASA">
+  <div class="card">
+    <h3>JPL Horizons</h3>
+    <span class="pill direct">usado direto pelo app</span>
+    <dl>
+      <dt>O que é</dt><dd>O sistema de efemérides do Jet Propulsion Laboratory. Calcula a posição de qualquer corpo do Sistema Solar visto de qualquer ponto, inclusive de um local na superfície da Lua.</dd>
+      <dt>Como o Janela Polar usa</dt><dd>O backend consulta a API da Horizons para obter o azimute e a elevação do Sol e da Terra em cada local, hora a hora, e a elevação da Lua vista de cada antena da Deep Space Network. A versão online publica esses dados todo dia. Na tabela abaixo, cada local tem um link para a tabela oficial.</dd>
+    </dl>
+    <div class="links"><a class="btn" href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">Abrir a Horizons</a><a class="btn" href="https://ssd-api.jpl.nasa.gov/doc/horizons.html" target="_blank" rel="noopener">Documentação da API</a></div>
+  </div>
+  <div class="card">
+    <h3>LROC QuickMap</h3>
+    <span class="pill">fonte das regiões e do relevo</span>
+    <dl>
+      <dt>O que é</dt><dd>Mapa interativo da Arizona State University com as imagens e a topografia da Lunar Reconnaissance Orbiter (LRO). Mostra o relevo em detalhe, essencial para entender o polo sul.</dd>
+      <dt>Como o Janela Polar usa</dt><dd>As regiões candidatas da Artemis III vêm do QuickMap, por meio das grades oficiais do USGS (scripts/sites_from_shapefiles.py). Use o QuickMap para ver o terreno ao redor de um local antes de decidir a margem do horizonte no app.</dd>
+    </dl>
+    <div class="links"><a class="btn" href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">Abrir o QuickMap</a><a class="btn" href="https://quickmap.lroc.im-ldi.com/?prjExtent=-2745969.2190026%2C-1843108.4242067%2C4098223.6680267%2C1631691.5757933&amp;earthShadowEnabled=true&amp;proj=10&amp;stack=3314&amp;defs=N4IgzGCMAsIFygPYAcCGBjAlgFwJ70gF9Cg" target="_blank" rel="noopener">Vista indicada no desafio</a></div>
+  </div>
+  <div class="card">
+    <h3>Moon Trek</h3>
+    <span class="pill">contexto 3D do terreno</span>
+    <dl>
+      <dt>O que é</dt><dd>Ferramenta da NASA para explorar a Lua em 3D, com topografia e camadas de dados. Ajuda a ver como montanhas e crateras bloqueiam o horizonte de um local.</dd>
+      <dt>Como o Janela Polar usa</dt><dd>Como complemento visual: o app mostra o horizonte em gráfico, e o Moon Trek mostra o mesmo terreno em 3D. Os modelos de elevação do LOLA usados no Moon Trek são do mesmo tipo que o app usa para calcular máscaras de horizonte (scripts/horizon_mask_from_dem.py).</dd>
+    </dl>
+    <div class="links"><a class="btn" href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">Abrir o Moon Trek</a><a class="btn" href="https://trek.nasa.gov/moon/#v=0.1&amp;x=0&amp;y=0&amp;z=1&amp;p=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A104903&amp;d=&amp;locale=&amp;b=moon&amp;e=-337.32421245770024%2C-168.04687186532644%2C337.32421245770024%2C168.04687186532644&amp;sfz=&amp;w=" target="_blank" rel="noopener">Vista indicada no desafio</a></div>
+  </div>
+</section>
+
+<section class="card" aria-label="Locais nas ferramentas da NASA">
+  <div class="tlhead"><h2>Cada local nas ferramentas da NASA</h2></div>
+  <p class="lede">O link da Horizons abre a tabela oficial com o azimute e a elevação do Sol ou da Terra vistos do local, hora a hora (sem refração, porque a Lua não tem atmosfera). Para o QuickMap e o Moon Trek, copie as coordenadas ou procure pelo nome da feição, como Malapert ou Haworth.</p>
+  <div class="controls">
+    <label class="ctl"><span class="lbl">A partir de (UTC)</span><input type="date" id="hStart"></label>
+    <label class="ctl"><span class="lbl">Duração</span><select id="hDays"><option value="1">1 dia</option><option value="3" selected>3 dias</option><option value="14">14 dias</option></select></label>
+    <label class="ctl"><span class="lbl">Passo</span><select id="hStep"><option value="10 m">10 min</option><option value="1 h" selected>1 hora</option><option value="6 h">6 horas</option></select></label>
+  </div>
+  <div class="tablewrap"><table id="tbl"><thead><tr><th>Local</th><th>Coordenadas</th><th>Horizons: Sol</th><th>Horizons: Terra</th></tr></thead><tbody></tbody></table></div>
+  <p class="note">Coordenadas das regiões Artemis III aproximadas (≈); pousos e Apollo segundo a NASA NSSDC. Longitude em graus leste, como a Horizons usa.</p>
+</section>
+
+<section class="cols">
+  <div class="card more"><h2>Para ir além</h2><ul class="facts">
+    <li><a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">Lunar Polar Illumination (NASA PGDA)</a>: mapas de iluminação dos polos calculados com a topografia do LOLA.</li>
+    <li><a href="https://pgda.gsfc.nasa.gov/products/78" target="_blank" rel="noopener">High-Resolution LOLA Topography for Lunar South Pole Sites (NASA PGDA)</a>: modelos de elevação de alta resolução para gerar máscaras de horizonte.</li>
+    <li><a href="https://svs.gsfc.nasa.gov/4930/" target="_blank" rel="noopener">Illumination at the Moon's South Pole, 2023 to 2030 (NASA SVS)</a>: animação da luz no polo sul, boa para aulas.</li>
+    <li><a href="https://www.usgs.gov/data/down-selected-artemis-iii-candidate-landing-site-navigational-grids" target="_blank" rel="noopener">Grades de navegação das regiões Artemis III (USGS)</a>: a geometria oficial das nove regiões candidatas.</li>
+    <li><a href="https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html" target="_blank" rel="noopener">Lunar Artifacts (NASA NSSDC)</a>: coordenadas de pouso das missões, usadas na lista de locais do app.</li>
+  </ul></div>
+  <div class="card more"><h2>Parceira: Agência Espacial Canadense</h2><ul class="facts">
+    <li>O <a href="https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/" target="_blank" rel="noopener">portal de exploração lunar da CSA</a> reúne as missões passadas, atuais e futuras e as contribuições do Canadá ao programa Artemis.</li>
+    <li>O Canadá fornece o Canadarm3, o sistema robótico da estação Gateway, que vai orbitar a Lua.</li>
+    <li>O país planeja um rover utilitário para explorar a Lua e financia pesquisa lunar pelo programa LEAP.</li>
+    <li>O astronauta canadense Jeremy Hansen faz parte da tripulação da Artemis II, o primeiro voo tripulado à Lua desde a Apollo.</li>
+  </ul></div>
+</section>
+
+<section class="card" aria-label="Aviso">
+  <p class="disclaimer">A NASA não endossa nenhuma entidade que não pertença ao governo dos EUA e não é responsável pelas informações de sites que não sejam do governo dos EUA. Ao usar esses sites, os participantes devem seguir as regras de uso de dados de cada um.</p>
+  <p class="disclaimer" lang="en">NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.</p>
+</section>
+</div>
+
+<script src="js/dados-nasa.js"></script>
+</body>
+</html>
