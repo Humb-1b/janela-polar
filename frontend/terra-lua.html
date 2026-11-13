@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Da Terra à Lua · Janela Polar</title>
+<meta name="description" content="Simulação de tempo e distância entre a Terra e a Lua a partir de bases de lançamento da NASA e de Alcântara.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23b8b2a6%22/%3E%3Cpath d=%22M8 1a7 7 0 0 0 0 14z%22 fill=%22%2307090c%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>
+/* Estilos só desta página; cores e tipografia vêm de css/app.css */
+:root{--craft:#c9579a}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--craft:#a3306f}}
+:root[data-theme="light"]{--craft:#a3306f}
+.back{font:500 .85rem var(--f-mono);color:var(--earth);text-decoration:none}
+.back:hover{text-decoration:underline}
+#orbit{aspect-ratio:1/1;max-width:100%}
+#dist{height:300px;cursor:ew-resize}
+.ro.craft{border-left:3px solid var(--craft)}
+.controls input[type=datetime-local]{font:500 .9rem var(--f-mono);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:6px 8px}
+.facts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
+.facts li{max-width:68ch}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.explain{margin:0;font-size:.95rem;line-height:1.55;max-width:65ch;border-left:3px solid var(--line);padding:2px 0 2px 12px}
+td.yes{color:var(--both);font-weight:600} td.no{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <a class="back" href="index.html">← Janela Polar: locais de pouso</a>
+    <h1>Da Terra <span>à Lua</span></h1>
+    <p class="sub">Onde está a Lua, a que distância e quanto tempo leva para chegar lá, partindo do Kennedy, de Wallops, de Vandenberg ou de Alcântara.</p>
+  </div>
+  <span class="tag" title="De onde vêm as posições">Fonte: modelo analítico no navegador</span>
+</header>
+
+<section class="card" aria-label="Parâmetros da viagem">
+  <div class="controls">
+    <label class="ctl"><span class="lbl">Lançamento (UTC)</span><input type="datetime-local" id="launch" step="3600"></label>
+    <label class="ctl"><span class="lbl">Base de lançamento</span><select id="site"></select></label>
+    <label class="ctl"><span class="lbl">Trajetória</span>
+      <select id="traj">
+        <option value="fast">Rápida, ~3 dias (como a Apollo)</option>
+        <option value="hohmann" selected>Econômica, ~5 dias (transferência de Hohmann)</option>
+      </select></label>
+    <label class="ctl"><span class="lbl">Altitude da órbita de espera <output id="parkO"></output></span><input type="range" id="park" min="160" max="400" step="5" value="185"></label>
+  </div>
+</section>
+
+<div class="main">
+  <section class="card" aria-label="Terra e Lua vistas de cima">
+    <div class="maphead">
+      <h2>Terra e Lua vistas de cima</h2>
+      <div class="toggles"><button id="play" aria-pressed="false">▶ Animar</button></div>
+    </div>
+    <canvas id="orbit" aria-label="Vista de cima: anéis de distância, órbita da Lua, nave e bases de lançamento"></canvas>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--lit)"></span>Lua</span>
+      <span><span class="sw" style="background:var(--craft)"></span>Nave</span>
+      <span><span class="sw" style="background:var(--sun)"></span>Direção do Sol</span>
+      <span><span class="sw" style="background:var(--earth)"></span>Base selecionada</span>
+      <span>Anéis a cada 100 mil km · tracejado: perigeu e apogeu do mês · a Terra está ampliada</span>
+    </div>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <div class="site-title"><h3 id="sName">—</h3><span class="coords" id="sCoords"></span></div>
+    <p class="explain" id="explain"></p>
+    <div class="readouts">
+      <div class="ro"><span class="lbl">Distância Terra–Lua agora</span><span class="v" id="rDist">—</span><span class="d" id="rDistD"></span></div>
+      <div class="ro earth"><span class="lbl">Lua vista da base</span><span class="v" id="rSite">—</span><span class="d" id="rSiteD"></span></div>
+      <div class="ro craft"><span class="lbl">Nave · distância da Terra</span><span class="v" id="rCraft">—</span><span class="d" id="rCraftD"></span></div>
+      <div class="ro craft"><span class="lbl">Chegada à Lua</span><span class="v" id="rArr">—</span><span class="d" id="rArrD"></span></div>
+      <div class="ro"><span class="lbl">Impulso da injeção translunar</span><span class="v" id="rDv">—</span><span class="d">a partir da órbita de espera</span></div>
+      <div class="ro sun"><span class="lbl">Empurrão da rotação da Terra</span><span class="v" id="rRot">—</span><span class="d" id="rRotD"></span></div>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-label="Tempo e distância">
+  <div class="tlhead">
+    <h2>Tempo × distância</h2>
+    <span class="now" id="nowLbl"></span>
+  </div>
+  <canvas id="dist" aria-label="Distância da Lua e da nave em relação à Terra ao longo de 30 dias"></canvas>
+  <input type="range" id="scrub" min="0" max="720" step="0.5" value="0" aria-label="Tempo desde o lançamento">
+  <div class="legend">
+    <span><span class="sw" style="background:var(--lit)"></span>Distância Terra–Lua (varia entre perigeu e apogeu)</span>
+    <span><span class="sw" style="background:var(--craft)"></span>Distância da nave até a Terra</span>
+    <span>Arraste no gráfico ou na barra para mudar o tempo</span>
+  </div>
+</section>
+
+<section class="card" aria-label="Comparar bases">
+  <div class="tlhead"><h2>Comparar bases de lançamento</h2><span class="lbl">no momento selecionado · clique numa linha</span></div>
+  <div class="tablewrap"><table id="tbl"><thead><tr>
+    <th>Base</th><th>Latitude</th><th>Rotação da Terra</th><th>Inclinação mínima</th><th>Lua no céu?</th><th>Distância até a Lua</th><th>Próximo nascer da Lua</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="cols">
+  <div class="card"><h2>O que muda com a base</h2><ul class="facts">
+    <li>A Terra gira para leste. Quanto mais perto do equador, mais rápido o chão se move: em Alcântara (2°S) são ~465 m/s, no Kennedy (28,6°N) ~408 m/s. Essa velocidade é um empurrão grátis para o foguete.</li>
+    <li>Um foguete lançado direto para leste entra numa órbita com inclinação igual à latitude da base. Mudar o plano da órbita depois custa muito combustível, por isso bases perto do equador alcançam qualquer inclinação com mais facilidade.</li>
+    <li>O tempo de viagem quase não depende da base: depende da trajetória escolhida e de onde a Lua estará na chegada.</li>
+  </ul></div>
+  <div class="card"><h2>O que muda com a data</h2><ul class="facts">
+    <li>A órbita da Lua é uma elipse: a distância varia de ~356 mil km (perigeu) a ~407 mil km (apogeu) ao longo de cerca de 27,5 dias.</li>
+    <li>A nave mira onde a Lua <em>vai estar</em> quando chegar, não onde ela está no lançamento. Na vista de cima, a Lua fantasma marca esse ponto.</li>
+    <li>A luz leva ~1,3 s para ir da Terra à Lua. É o atraso de cada mensagem entre o controle da missão e os astronautas.</li>
+  </ul></div>
+  <div class="card"><h2>Simplificações</h2><ul class="facts">
+    <li>Posição da Lua pelo mesmo modelo analítico do Janela Polar (erro de poucas centenas de km na distância). Para números oficiais, use a JPL Horizons.</li>
+    <li>A trajetória é uma elipse de Kepler só com a gravidade da Terra, desenhada no plano do equador, saindo da órbita de espera no instante do lançamento. A gravidade da Lua e a fase de inserção em órbita lunar ficam de fora.</li>
+    <li>Vista de cima do polo norte celeste: o ângulo é a ascensão reta, e a distância ao centro é a distância real.</li>
+  </ul></div>
+</section>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/terra-lua.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ Ferramenta para comparar locais de pouso no polo sul da Lua: **quando há Sol** 
 - Encontrar a melhor data de pouso: um mapa de calor mostra, para cada dia dos próximos meses, que fração da missão teria Sol e contato.
 - Fixar cenários (local + data) e compará-los lado a lado. Serve, por exemplo, para comparar o plano original com as alternativas depois de um atraso.
 - Explicações em linguagem simples para educadores e para o público.
+- **Da Terra à Lua** (`terra-lua.html`): vista de cima da Terra e da órbita da Lua em anéis de distância, com as bases de lançamento do Kennedy, de Wallops, de Vandenberg e de Alcântara girando com a Terra. Simula a viagem (rápida, ~3 dias, ou econômica, ~5 dias), mostra o gráfico tempo × distância e compara as bases: empurrão da rotação da Terra, inclinação mínima e se a Lua está no céu.
 
 As posições do Sol e da Terra vêm da **JPL Horizons API** (efeméride DE441, a mesma usada pela JPL em planejamento de missões). Se a Horizons não responder, o app continua funcionando com um modelo analítico embutido e mostra qual fonte está em uso.
 
@@ -66,6 +67,8 @@ janela-polar/
 │   ├── css/app.css           visual (cores com tema claro e escuro)
 │   ├── js/engine.js          cálculos astronômicos (mesma matemática de backend/app/analytic.py)
 │   ├── js/app.js             interface: mapas, painel, linha do tempo, planejador, cenários
+│   ├── terra-lua.html        página Da Terra à Lua (bases de lançamento e viagem)
+│   ├── js/terra-lua.js       simulação dessa página (usa js/engine.js)
 │   ├── tests/engine.test.mjs testa o motor JS contra os valores do Python (node --test)
 │   ├── config.js             endereço do backend quando hospedado separado
 │   └── data/                 pacotes pré-calculados (gerados por scripts/precompute.py)
